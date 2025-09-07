@@ -1,0 +1,81 @@
+.App {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.demo-content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  background: white;
+  min-height: 100vh;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.1);
+}
+
+.demo-content h1 {
+  color: #2d3748;
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 2.5em;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.demo-content p {
+  color: #4a5568;
+  line-height: 1.6;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.demo-sections {
+  display: grid;
+  gap: 30px;
+  margin-top: 40px;
+}
+
+.demo-sections section {
+  background: #f7fafc;
+  padding: 25px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.demo-sections h2 {
+  color: #2d3748;
+  margin-bottom: 15px;
+  font-size: 1.5em;
+}
+
+.demo-sections ul,
+.demo-sections ol {
+  color: #4a5568;
+  line-height: 1.6;
+  padding-left: 20px;
+}
+
+.demo-sections li {
+  margin-bottom: 8px;
+}
+
+@media (max-width: 768px) {
+  .demo-content {
+    padding: 20px 15px;
+  }
+  
+  .demo-content h1 {
+    font-size: 2em;
+  }
+  
+  .demo-sections {
+    gap: 20px;
+    margin-top: 30px;
+  }
+  
+  .demo-sections section {
+    padding: 20px;
+  }
+}

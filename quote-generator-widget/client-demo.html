@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ABC Home Services - Client Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+        
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            transition: opacity 0.3s;
+        }
+        
+        .nav-links a:hover {
+            opacity: 0.8;
+        }
+        
+        .hero {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            padding: 4rem 0;
+            text-align: center;
+        }
+        
+        .hero h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #2d3748;
+        }
+        
+        .hero p {
+            font-size: 1.2rem;
+            color: #4a5568;
+            margin-bottom: 2rem;
+        }
+        
+        .cta-button {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(72, 187, 120, 0.3);
+        }
+        
+        .services {
+            padding: 4rem 0;
+            background: white;
+        }
+        
+        .services h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: #2d3748;
+        }
+        
+        .service-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+        
+        .service-card {
+            background: #f7fafc;
+            padding: 2rem;
+            border-radius: 12px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .service-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .service-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .service-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #2d3748;
+        }
+        
+        .service-card p {
+            color: #4a5568;
+            margin-bottom: 1rem;
+        }
+        
+        .about {
+            background: #f7fafc;
+            padding: 4rem 0;
+        }
+        
+        .about-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: center;
+        }
+        
+        .about-text h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: #2d3748;
+        }
+        
+        .about-text p {
+            color: #4a5568;
+            margin-bottom: 1rem;
+        }
+        
+        .about-image {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 300px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+        }
+        
+        .footer {
+            background: #2d3748;
+            color: white;
+            padding: 3rem 0;
+            text-align: center;
+        }
+        
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .footer-section h3 {
+            margin-bottom: 1rem;
+        }
+        
+        .footer-section p, .footer-section a {
+            color: #a0aec0;
+            text-decoration: none;
+        }
+        
+        .footer-section a:hover {
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2rem;
+            }
+            
+            .about-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+        }
+        
+        /* Chat widget notice */
+        .chat-notice {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            max-width: 250px;
+            z-index: 9999;
+            animation: slideIn 0.5s ease-out 2s both;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .chat-notice::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            right: 20px;
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 10px solid white;
+        }
+        
+        .close-notice {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <nav class="nav">
+                <div class="logo">ABC Home Services</div>
+                <ul class="nav-links">
+                    <li><a href="#services">Services</a></li>
+                    <li><a href="#about">About</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                    <li><a href="tel:(555)123-4567">(555) 123-4567</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <h1>Professional Home Services</h1>
+            <p>HVAC, Plumbing, Electrical, and Remodeling Services You Can Trust</p>
+            <a href="#contact" class="cta-button">Get Free Estimate</a>
+        </div>
+    </section>
+
+    <!-- Services Section -->
+    <section class="services" id="services">
+        <div class="container">
+            <h2>Our Services</h2>
+            <div class="service-grid">
+                <div class="service-card">
+                    <div class="service-icon">🔥</div>
+                    <h3>HVAC Services</h3>
+                    <p>Installation, repair, and maintenance of heating and cooling systems. 24/7 emergency service available.</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">🚰</div>
+                    <h3>Plumbing</h3>
+                    <p>From leaky faucets to complete bathroom remodels. Licensed plumbers with upfront pricing.</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">⚡</div>
+                    <h3>Electrical</h3>
+                    <p>Electrical repairs, panel upgrades, and smart home installations by certified electricians.</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">🏠</div>
+                    <h3>Kitchen Remodeling</h3>
+                    <p>Transform your kitchen with our complete remodeling services. Design to completion.</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">🛁</div>
+                    <h3>Bathroom Renovation</h3>
+                    <p>Modern bathroom designs with quality materials and professional installation.</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">🏠</div>
+                    <h3>Roofing & Gutters</h3>
+                    <p>Roof repairs, replacements, and gutter services with warranties up to 25 years.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="about" id="about">
+        <div class="container">
+            <div class="about-content">
+                <div class="about-text">
+                    <h2>Why Choose ABC Home Services?</h2>
+                    <p>With over 15 years of experience serving the local community, we're your trusted partner for all home improvement needs.</p>
+                    <p>Our licensed and insured professionals provide quality workmanship with transparent pricing and excellent customer service.</p>
+                    <p>We offer free estimates, flexible scheduling, and warranty protection on all our work.</p>
+                </div>
+                <div class="about-image">
+                    Professional Team Photo Placeholder
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer" id="contact">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Contact Info</h3>
+                    <p>📞 (555) 123-4567</p>
+                    <p>📧 info@abchomeservices.com</p>
+                    <p>📍 123 Main St, Anytown, ST 12345</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Business Hours</h3>
+                    <p>Monday - Friday: 7:00 AM - 6:00 PM</p>
+                    <p>Saturday: 8:00 AM - 4:00 PM</p>
+                    <p>Sunday: Emergency Service Only</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Service Areas</h3>
+                    <p>Anytown, Somewhere, Demo City</p>
+                    <p>and surrounding areas</p>
+                    <p><a href="#">View Full Service Area</a></p>
+                </div>
+            </div>
+            <p>&copy; 2024 ABC Home Services. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Chat Widget Notice -->
+    <div class="chat-notice" id="chatNotice">
+        <button class="close-notice" onclick="document.getElementById('chatNotice').style.display='none'">&times;</button>
+        <strong>💬 Need help?</strong><br>
+        Click the chat bubble to get instant answers and free quotes!
+    </div>
+
+    <!-- Quote Generator Chat Widget -->
+    <script 
+        src="./dist/quote-generator-chat.js"
+        data-business-id="550e8400-e29b-41d4-a716-446655440000"
+        data-api-base-url="http://localhost:3001">
+    </script>
+
+</body>
+</html>

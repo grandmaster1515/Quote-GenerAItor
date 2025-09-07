@@ -1,0 +1,123 @@
+.chat-bubble-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.chat-bubble {
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s ease;
+  position: relative;
+  color: white;
+}
+
+.chat-bubble:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+}
+
+.chat-bubble:focus {
+  outline: none;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4), 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+.bubble-icon {
+  z-index: 2;
+  position: relative;
+}
+
+.bubble-pulse {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(102, 126, 234, 0.3);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.bubble-tooltip {
+  background: white;
+  border-radius: 20px;
+  padding: 8px 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  animation: slideUp 0.3s ease-out;
+  max-width: 200px;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tooltip-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #2d3748;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.tooltip-content svg {
+  color: #48bb78;
+  flex-shrink: 0;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+  .chat-bubble-container {
+    bottom: 15px;
+    right: 15px;
+  }
+
+  .chat-bubble {
+    width: 55px;
+    height: 55px;
+  }
+
+  .bubble-tooltip {
+    max-width: 150px;
+    font-size: 13px;
+  }
+}
+
+/* Hide tooltip on very small screens to avoid overflow */
+@media (max-width: 360px) {
+  .bubble-tooltip {
+    display: none;
+  }
+}

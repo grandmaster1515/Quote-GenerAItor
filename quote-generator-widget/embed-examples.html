@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quote Generator Chat Widget - Embed Examples</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .example {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .code {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .demo-section {
+            background: white;
+            padding: 30px;
+            margin: 20px 0;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #2d3748;
+        }
+        .note {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Quote Generator Chat Widget - Embedding Guide</h1>
+    
+    <div class="note">
+        <strong>Note:</strong> Make sure your backend server is running on <code>http://localhost:3001</code> 
+        for these examples to work properly.
+    </div>
+
+    <div class="demo-section">
+        <h2>1. Basic Embedding (Auto-initialization)</h2>
+        <p>The simplest way to embed the chat widget. Just add the script tag with your business ID:</p>
+        
+        <div class="code">
+&lt;script 
+    src="./dist/quote-generator-chat.js"
+    data-business-id="demo-business-123"
+    data-api-base-url="http://localhost:3001"&gt;
+&lt;/script&gt;
+        </div>
+        
+        <div class="example">
+            <h3>Try it:</h3>
+            <p>This example auto-initializes the widget when the page loads.</p>
+            <script 
+                src="./dist/quote-generator-chat.js"
+                data-business-id="demo-business-123"
+                data-api-base-url="http://localhost:3001">
+            </script>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>2. Manual Initialization</h2>
+        <p>For more control, you can manually initialize the widget:</p>
+        
+        <div class="code">
+&lt;script src="./dist/quote-generator-chat.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  QuoteGeneratorChat.init({
+    businessId: 'demo-business-123',
+    apiBaseUrl: 'http://localhost:3001',
+    position: 'bottom-left',
+    theme: 'default'
+  });
+&lt;/script&gt;
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>3. Custom Container</h2>
+        <p>Embed the widget in a specific container instead of floating:</p>
+        
+        <div class="code">
+&lt;div id="my-chat-container" style="height: 600px; border: 1px solid #ccc;"&gt;&lt;/div&gt;
+
+&lt;script src="./dist/quote-generator-chat.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  QuoteGeneratorChat.init({
+    businessId: 'demo-business-123',
+    apiBaseUrl: 'http://localhost:3001',
+    containerId: 'my-chat-container'
+  });
+&lt;/script&gt;
+        </div>
+        
+        <div class="example">
+            <h3>Try it:</h3>
+            <div id="my-chat-container" style="height: 400px; border: 1px solid #ccc; border-radius: 8px;"></div>
+            <script>
+                // Initialize in custom container
+                setTimeout(() => {
+                    QuoteGeneratorChat.init({
+                        businessId: 'demo-business-456',
+                        apiBaseUrl: 'http://localhost:3001',
+                        containerId: 'my-chat-container'
+                    });
+                }, 1000);
+            </script>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>4. Configuration Options</h2>
+        <p>All available configuration options:</p>
+        
+        <div class="code">
+QuoteGeneratorChat.init({
+  // Required
+  businessId: 'your-business-id',
+  
+  // Optional
+  apiBaseUrl: 'https://your-api-domain.com',  // Default: http://localhost:3001
+  containerId: 'custom-container-id',         // Default: creates floating widget
+  position: 'bottom-right',                   // Options: bottom-right, bottom-left, top-right, top-left
+  theme: 'default',                           // Future: custom themes
+  
+  // Widget behavior (future enhancements)
+  autoOpen: false,                            // Auto-open chat on page load
+  showWelcomeMessage: true,                   // Show initial bot message
+  collectLeadOnStart: false,                  // Show lead form immediately
+  allowPhotoUpload: true,                     // Enable photo upload feature
+  maxFileSize: 5242880,                       // 5MB in bytes
+  
+  // Styling (future enhancements)
+  primaryColor: '#667eea',                    // Primary brand color
+  textColor: '#2d3748',                       // Text color
+  backgroundColor: '#ffffff',                 // Background color
+  borderRadius: '16px',                       // Border radius
+  
+  // Callbacks (future enhancements)
+  onOpen: () => console.log('Chat opened'),
+  onClose: () => console.log('Chat closed'),
+  onLeadSubmit: (lead) => console.log('Lead submitted:', lead),
+  onMessage: (message) => console.log('Message sent:', message)
+});
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>5. Widget Control Methods</h2>
+        <p>Control the widget programmatically:</p>
+        
+        <div class="code">
+// Get current instance
+const instance = QuoteGeneratorChat.getInstance();
+
+// Update configuration
+QuoteGeneratorChat.updateConfig({
+  businessId: 'new-business-id',
+  theme: 'dark'
+});
+
+// Destroy widget
+QuoteGeneratorChat.destroy();
+
+// Re-initialize with new config
+QuoteGeneratorChat.init({ businessId: 'another-business-id' });
+        </div>
+        
+        <div class="example">
+            <h3>Try it:</h3>
+            <button onclick="destroyWidget()">Destroy Widget</button>
+            <button onclick="recreateWidget()">Recreate Widget</button>
+            <button onclick="showInstance()">Show Instance Info</button>
+            
+            <script>
+                function destroyWidget() {
+                    QuoteGeneratorChat.destroy();
+                    alert('Widget destroyed!');
+                }
+                
+                function recreateWidget() {
+                    QuoteGeneratorChat.init({
+                        businessId: 'demo-business-789',
+                        apiBaseUrl: 'http://localhost:3001',
+                        position: 'top-left'
+                    });
+                    alert('Widget recreated in top-left!');
+                }
+                
+                function showInstance() {
+                    const instance = QuoteGeneratorChat.getInstance();
+                    alert('Instance: ' + (instance ? 'Active' : 'None'));
+                }
+            </script>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>6. Production Deployment</h2>
+        <p>For production, host the widget files on a CDN and update the script src:</p>
+        
+        <div class="code">
+&lt;!-- Production example --&gt;
+&lt;script 
+    src="https://your-cdn.com/quote-generator-chat.js"
+    data-business-id="your-actual-business-id"
+    data-api-base-url="https://your-api-domain.com"&gt;
+&lt;/script&gt;
+        </div>
+        
+        <div class="note">
+            <strong>Deployment Checklist:</strong>
+            <ul>
+                <li>Upload <code>dist/quote-generator-chat.js</code> and <code>dist/quote-generator-chat.css</code> to your CDN</li>
+                <li>Update API base URL to your production backend</li>
+                <li>Configure CORS on your backend to allow your client domains</li>
+                <li>Set up proper business IDs for each client</li>
+                <li>Test the widget on client websites before going live</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="demo-section">
+        <h2>7. Troubleshooting</h2>
+        
+        <h3>Common Issues:</h3>
+        <ul>
+            <li><strong>Widget not appearing:</strong> Check browser console for errors, verify script URL</li>
+            <li><strong>API errors:</strong> Ensure backend is running and CORS is configured</li>
+            <li><strong>Styling conflicts:</strong> Widget uses isolated CSS, but check for z-index issues</li>
+            <li><strong>Mobile issues:</strong> Widget is responsive, but test on actual devices</li>
+        </ul>
+        
+        <h3>Debug Mode:</h3>
+        <div class="code">
+// Enable debug logging
+localStorage.setItem('quote-chat-debug', 'true');
+
+// Check widget status
+console.log(QuoteGeneratorChat.getInstance());
+        </div>
+    </div>
+
+</body>
+</html>
