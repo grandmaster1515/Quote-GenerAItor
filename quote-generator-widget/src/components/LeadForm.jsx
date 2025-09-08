@@ -36,6 +36,10 @@ const LeadForm = ({ onSubmit, onCancel }) => {
       newErrors.phone = 'Please enter a valid phone number';
     }
 
+    if (!formData.address.trim()) {
+      newErrors.address = 'Address is required';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -153,7 +157,7 @@ const LeadForm = ({ onSubmit, onCancel }) => {
             <div className="form-group">
               <label htmlFor="address">
                 <MapPin size={16} />
-                Service Address
+                Service Address *
               </label>
               <input
                 type="text"
@@ -161,9 +165,11 @@ const LeadForm = ({ onSubmit, onCancel }) => {
                 name="address"
                 value={formData.address}
                 onChange={handleInputChange}
+                className={errors.address ? 'error' : ''}
                 placeholder="123 Main St, City, State"
                 disabled={isSubmitting}
               />
+              {errors.address && <span className="error-text">{errors.address}</span>}
             </div>
           </div>
 

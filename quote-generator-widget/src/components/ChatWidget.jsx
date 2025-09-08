@@ -3,22 +3,15 @@ import ChatBubble from './ChatBubble';
 import MessageList from './MessageList';
 import PhotoUpload from './PhotoUpload';
 import LeadForm from './LeadForm';
-import { Send, X, MessageCircle } from 'lucide-react';
+import { Send, X, MessageCircle, Camera } from 'lucide-react';
 import '../styles/ChatWidget.css';
 
 const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      type: 'bot',
-      content: 'Hi! How can I help you today? Feel free to ask about our services or upload photos of your project.',
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showLeadForm, setShowLeadForm] = useState(false);
+  const [showLeadForm, setShowLeadForm] = useState(true); // Show form first
   const [leadData, setLeadData] = useState(null);
   const inputRef = useRef(null);
 
@@ -127,7 +120,7 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
         body: JSON.stringify({
           ...leadInfo,
           businessId,
-          messages: messages.slice(-5) // Include recent conversation context
+          messages: [] // No previous messages when starting fresh
         }),
       });
 
@@ -137,7 +130,16 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
 
       setLeadData(leadInfo);
       setShowLeadForm(false);
-      addMessage('bot', `Thanks ${leadInfo.name}! I've saved your information. How else can I help you today?`);
+      
+      // Initialize chat with welcome message
+      setMessages([
+        {
+          id: 1,
+          type: 'bot',
+          content: `Hi ${leadInfo.name}! Thanks for providing your information. How can I help you with your ${leadInfo.projectType || 'project'} today? Feel free to ask questions or upload photos.`,
+          timestamp: new Date()
+        }
+      ]);
     } catch (error) {
       console.error('Error saving lead:', error);
       addMessage('bot', 'Sorry, there was an error saving your information. Please try again.');
@@ -171,52 +173,62 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
         </div>
 
         <div className="chat-body">
-          <MessageList messages={messages} isLoading={isLoading} />
-          
-          {showLeadForm && (
+          {showLeadForm ? (
             <LeadForm 
               onSubmit={handleLeadSubmit}
-              onCancel={() => setShowLeadForm(false)}
+              onCancel={() => {
+                setShowLeadForm(false);
+                setIsOpen(false);
+              }}
             />
+          ) : (
+            <MessageList messages={messages} isLoading={isLoading} />
           )}
         </div>
 
-        <div className="chat-footer">
-          <PhotoUpload 
-            onUpload={handlePhotoUpload}
-            disabled={isLoading}
-          />
-          
-          <div className="input-container">
-            <textarea
-              ref={inputRef}
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Type your message..."
-              className="message-input"
-              rows="1"
-              disabled={isLoading}
-            />
-            <button
-              onClick={handleSendMessage}
-              disabled={!inputValue.trim() || isLoading}
-              className="send-button"
-              aria-label="Send message"
-            >
-              <Send size={18} />
-            </button>
+        {!showLeadForm && (
+          <div className="chat-footer">
+            <div className="input-container">
+              <button
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = 'image/*';
+                  input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file) handlePhotoUpload(file);
+                  };
+                  input.click();
+                }}
+                className="photo-upload-button"
+                disabled={isLoading}
+                aria-label="Upload photo"
+                title="Upload photo"
+              >
+                <Camera size={18} />
+              </button>
+              
+              <textarea
+                ref={inputRef}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Type your message..."
+                className="message-input"
+                rows="1"
+                disabled={isLoading}
+              />
+              <button
+                onClick={handleSendMessage}
+                disabled={!inputValue.trim() || isLoading}
+                className="send-button"
+                aria-label="Send message"
+              >
+                <Send size={18} />
+              </button>
+            </div>
           </div>
-
-          {!leadData && (
-            <button
-              onClick={() => setShowLeadForm(true)}
-              className="lead-form-trigger"
-            >
-              Get a Quote
-            </button>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

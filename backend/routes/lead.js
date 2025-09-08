@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const { query } = require('../config/database');
 
-// Mock database for demo purposes
-// In production, this would use PostgreSQL
+// Mock database fallback for demo purposes
 const leads = [];
 
 // Helper function to validate email
@@ -58,27 +58,74 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Create lead object
-    const lead = {
-      id: Date.now().toString(),
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      phone: phone.trim(),
-      address: address ? address.trim() : null,
-      projectType: projectType || null,
-      budget: budget || null,
-      timeline: timeline || null,
-      notes: notes ? notes.trim() : null,
-      businessId,
-      messages: messages || [],
-      status: 'new',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      source: 'chat-widget'
-    };
-
-    // Save to mock database (in production, save to PostgreSQL)
-    leads.push(lead);
+    // Try to save to PostgreSQL database first
+    let lead;
+    try {
+      const result = await query(`
+        INSERT INTO leads (business_id, name, email, phone, address, project_type, budget, timeline, notes, status, source, conversation_history)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING *
+      `, [
+        businessId,
+        name.trim(),
+        email.trim().toLowerCase(),
+        phone.trim(),
+        address ? address.trim() : null,
+        projectType || null,
+        budget || null,
+        timeline || null,
+        notes ? notes.trim() : null,
+        'new',
+        'chat-widget',
+        JSON.stringify(messages || [])
+      ]);
+      
+      lead = result.rows[0];
+      
+      // Convert database format to API format
+      lead = {
+        id: lead.id,
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        address: lead.address,
+        projectType: lead.project_type,
+        budget: lead.budget,
+        timeline: lead.timeline,
+        notes: lead.notes,
+        businessId: lead.business_id,
+        messages: lead.conversation_history,
+        status: lead.status,
+        createdAt: lead.created_at,
+        updatedAt: lead.updated_at,
+        source: lead.source
+      };
+      
+    } catch (dbError) {
+      console.warn('Database save failed, using fallback:', dbError.message);
+      
+      // Fallback to mock database
+      lead = {
+        id: Date.now().toString(),
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        address: address ? address.trim() : null,
+        projectType: projectType || null,
+        budget: budget || null,
+        timeline: timeline || null,
+        notes: notes ? notes.trim() : null,
+        businessId,
+        messages: messages || [],
+        status: 'new',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        source: 'chat-widget'
+      };
+      
+      // Save to mock database
+      leads.push(lead);
+    }
 
     // Log the lead creation
     console.log(`New lead created for business ${businessId}:`, {
@@ -119,9 +166,9 @@ router.post('/', async (req, res) => {
 });
 
 // GET /lead - Get leads for a business (with pagination)
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const { businessId, page = 1, limit = 10, status } = req.query;
+    const { businessId, page = 1, limit = 50, status } = req.query;
 
     if (!businessId) {
       return res.status(400).json({ 
@@ -129,32 +176,95 @@ router.get('/', (req, res) => {
       });
     }
 
-    // Filter leads by business ID
-    let filteredLeads = leads.filter(lead => lead.businessId === businessId);
-
-    // Filter by status if provided
-    if (status) {
-      filteredLeads = filteredLeads.filter(lead => lead.status === status);
-    }
-
-    // Sort by creation date (newest first)
-    filteredLeads.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-
-    // Pagination
-    const startIndex = (parseInt(page) - 1) * parseInt(limit);
-    const endIndex = startIndex + parseInt(limit);
-    const paginatedLeads = filteredLeads.slice(startIndex, endIndex);
-
-    res.json({
-      success: true,
-      leads: paginatedLeads,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: filteredLeads.length,
-        totalPages: Math.ceil(filteredLeads.length / parseInt(limit))
+    let dbLeads = [];
+    
+    try {
+      // Try to fetch from database first
+      let dbQuery = 'SELECT * FROM leads WHERE business_id = $1';
+      let queryParams = [businessId];
+      
+      if (status && status !== 'all') {
+        dbQuery += ' AND status = $2';
+        queryParams.push(status);
       }
-    });
+      
+      dbQuery += ' ORDER BY created_at DESC LIMIT $' + (queryParams.length + 1) + ' OFFSET $' + (queryParams.length + 2);
+      queryParams.push(parseInt(limit), (parseInt(page) - 1) * parseInt(limit));
+      
+      const result = await query(dbQuery, queryParams);
+      
+      // Convert database format to API format
+      dbLeads = result.rows.map(lead => ({
+        id: lead.id,
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        address: lead.address,
+        projectType: lead.project_type,
+        budget: lead.budget,
+        timeline: lead.timeline,
+        notes: lead.notes,
+        businessId: lead.business_id,
+        messages: lead.conversation_history,
+        status: lead.status,
+        createdAt: lead.created_at,
+        updatedAt: lead.updated_at,
+        source: lead.source
+      }));
+      
+      // Get total count for pagination
+      let countQuery = 'SELECT COUNT(*) FROM leads WHERE business_id = $1';
+      let countParams = [businessId];
+      
+      if (status && status !== 'all') {
+        countQuery += ' AND status = $2';
+        countParams.push(status);
+      }
+      
+      const countResult = await query(countQuery, countParams);
+      const totalCount = parseInt(countResult.rows[0].count);
+      
+      res.json({
+        success: true,
+        leads: dbLeads,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / parseInt(limit))
+        }
+      });
+      
+    } catch (dbError) {
+      console.warn('Database fetch failed, using fallback:', dbError.message);
+      
+      // Fallback to mock database
+      let filteredLeads = leads.filter(lead => lead.businessId === businessId);
+
+      // Filter by status if provided
+      if (status && status !== 'all') {
+        filteredLeads = filteredLeads.filter(lead => lead.status === status);
+      }
+
+      // Sort by creation date (newest first)
+      filteredLeads.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+      // Pagination
+      const startIndex = (parseInt(page) - 1) * parseInt(limit);
+      const endIndex = startIndex + parseInt(limit);
+      const paginatedLeads = filteredLeads.slice(startIndex, endIndex);
+
+      res.json({
+        success: true,
+        leads: paginatedLeads,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: filteredLeads.length,
+          totalPages: Math.ceil(filteredLeads.length / parseInt(limit))
+        }
+      });
+    }
 
   } catch (error) {
     console.error('Get leads error:', error);
@@ -192,17 +302,10 @@ router.get('/:id', (req, res) => {
 });
 
 // PATCH /lead/:id - Update lead status
-router.patch('/:id', (req, res) => {
+router.patch('/:id', async (req, res) => {
   try {
     const leadId = req.params.id;
     const { status, notes } = req.body;
-
-    const leadIndex = leads.findIndex(l => l.id === leadId);
-    if (leadIndex === -1) {
-      return res.status(404).json({ 
-        error: 'Lead not found' 
-      });
-    }
 
     // Valid statuses
     const validStatuses = ['new', 'contacted', 'qualified', 'quoted', 'won', 'lost'];
@@ -212,19 +315,83 @@ router.patch('/:id', (req, res) => {
       });
     }
 
-    // Update lead
-    if (status) {
-      leads[leadIndex].status = status;
+    let updatedLead;
+
+    try {
+      // Try to update in database first
+      let updateQuery = 'UPDATE leads SET ';
+      let updateParams = [];
+      let paramCounter = 1;
+      
+      if (status) {
+        updateQuery += `status = $${paramCounter}, `;
+        updateParams.push(status);
+        paramCounter++;
+      }
+      
+      if (notes !== undefined) {
+        updateQuery += `notes = $${paramCounter}, `;
+        updateParams.push(notes);
+        paramCounter++;
+      }
+      
+      updateQuery += `updated_at = NOW() WHERE id = $${paramCounter} RETURNING *`;
+      updateParams.push(leadId);
+      
+      const result = await query(updateQuery, updateParams);
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ 
+          error: 'Lead not found' 
+        });
+      }
+      
+      const dbLead = result.rows[0];
+      updatedLead = {
+        id: dbLead.id,
+        name: dbLead.name,
+        email: dbLead.email,
+        phone: dbLead.phone,
+        address: dbLead.address,
+        projectType: dbLead.project_type,
+        budget: dbLead.budget,
+        timeline: dbLead.timeline,
+        notes: dbLead.notes,
+        businessId: dbLead.business_id,
+        messages: dbLead.conversation_history,
+        status: dbLead.status,
+        createdAt: dbLead.created_at,
+        updatedAt: dbLead.updated_at,
+        source: dbLead.source
+      };
+      
+    } catch (dbError) {
+      console.warn('Database update failed, using fallback:', dbError.message);
+      
+      // Fallback to mock database
+      const leadIndex = leads.findIndex(l => l.id === leadId);
+      if (leadIndex === -1) {
+        return res.status(404).json({ 
+          error: 'Lead not found' 
+        });
+      }
+
+      // Update lead
+      if (status) {
+        leads[leadIndex].status = status;
+      }
+      if (notes !== undefined) {
+        leads[leadIndex].notes = notes;
+      }
+      leads[leadIndex].updatedAt = new Date().toISOString();
+
+      updatedLead = leads[leadIndex];
     }
-    if (notes !== undefined) {
-      leads[leadIndex].notes = notes;
-    }
-    leads[leadIndex].updatedAt = new Date().toISOString();
 
     res.json({
       success: true,
       message: 'Lead updated successfully',
-      lead: leads[leadIndex]
+      lead: updatedLead
     });
 
   } catch (error) {
