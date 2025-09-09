@@ -69,7 +69,8 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
-    service: 'Quote GenerAItor Backend'
+    service: 'Quote GenerAItor Backend',
+    openaiConfigured: !!process.env.OPENAI_API_KEY // Check if OpenAI is configured
   });
 });
 
@@ -119,6 +120,7 @@ app.listen(PORT, () => {
   console.log(`🤖 Chat API: http://localhost:${PORT}/chat`);
   console.log(`📁 Upload API: http://localhost:${PORT}/upload`);
   console.log(`👤 Lead API: http://localhost:${PORT}/lead`);
+  console.log(`🔑 OpenAI configured: ${!!process.env.OPENAI_API_KEY}`);
 });
 
 // Graceful shutdown
