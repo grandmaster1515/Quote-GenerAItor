@@ -249,7 +249,7 @@ const LeadForm = ({ onSubmit, onCancel }) => {
                 value={formData.notes}
                 onChange={handleInputChange}
                 placeholder="Tell us more about your project..."
-                rows="3"
+                rows="2"
                 disabled={isSubmitting}
               />
             </div>

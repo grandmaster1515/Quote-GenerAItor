@@ -24,12 +24,14 @@
 .lead-form {
   background: white;
   border-radius: 12px;
-  width: 90%;
-  max-width: 400px;
-  max-height: 90%;
+  width: 340px;
+  max-height: 510px;
   overflow: hidden;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
   animation: slideUp 0.3s ease-out;
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
 }
 
 @keyframes slideUp {
@@ -46,10 +48,11 @@
 .form-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 16px 20px;
+  padding: 12px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 
 .form-header h3 {
@@ -76,9 +79,11 @@
 }
 
 .form-content {
-  padding: 20px;
-  max-height: 70vh;
+  padding: 16px 20px;
+  flex: 1;
   overflow-y: auto;
+  min-height: 0;
+  max-height: 360px;
 }
 
 .form-content::-webkit-scrollbar {
@@ -95,13 +100,13 @@
 }
 
 .form-row {
-  margin-bottom: 16px;
+  margin-bottom: 8px;
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .form-group label {
@@ -123,7 +128,7 @@
 .form-group textarea {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 8px 12px;
   font-size: 14px;
   font-family: inherit;
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -153,7 +158,7 @@
 
 .form-group textarea {
   resize: vertical;
-  min-height: 80px;
+  min-height: 50px;
 }
 
 .error-text {
@@ -165,9 +170,11 @@
 .form-actions {
   display: flex;
   gap: 12px;
-  margin-top: 24px;
-  padding-top: 16px;
+  margin-top: 16px;
+  padding: 16px 20px 20px 20px;
   border-top: 1px solid #e2e8f0;
+  background: white;
+  flex-shrink: 0;
 }
 
 .cancel-button {

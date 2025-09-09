@@ -42,7 +42,7 @@ function App() {
       
       <ChatWidget 
         businessId="demo-business-123"
-        apiBaseUrl="http://localhost:3001"
+        apiBaseUrl="https://quote-gener-a-itor-backend.vercel.app"
       />
     </div>
   );
