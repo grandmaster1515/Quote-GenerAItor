@@ -1,6 +1,6 @@
 const { HuggingFaceTransformers } = require('@langchain/community/embeddings/hf_transformers');
 const { PGVectorStore } = require('@langchain/community/vectorstores/pgvector');
-const { OpenAI } = require('@langchain/openai');
+const { ChatOpenAI } = require('@langchain/openai');
 const { RetrievalQAChain } = require('langchain/chains');
 const { PromptTemplate } = require('@langchain/core/prompts');
 const { pool } = require('../config/database');
@@ -27,13 +27,13 @@ class RAGService {
 
       // Initialize LLM (OpenAI or local alternative)
       if (process.env.OPENAI_API_KEY) {
-        this.llm = new OpenAI({
+        this.llm = new ChatOpenAI({
           openAIApiKey: process.env.OPENAI_API_KEY,
           modelName: 'gpt-3.5-turbo',
           temperature: 0.7,
           maxTokens: 500
         });
-        console.log('✅ Using OpenAI LLM');
+        console.log('✅ Using OpenAI ChatOpenAI LLM');
       } else {
         // Fallback to mock LLM for development
         console.log('⚠️  No OpenAI API key found, using mock responses');
@@ -53,14 +53,15 @@ class RAGService {
 
   async initializeVectorStore() {
     try {
-      // pgvector connection config
+      // pgvector connection config - use same config as database.js
       const config = {
         postgresConnectionOptions: {
-          host: process.env.DB_HOST || 'localhost',
-          port: process.env.DB_PORT || 5432,
-          database: process.env.DB_NAME || 'quote_generator',
-          user: process.env.DB_USER || 'postgres',
-          password: process.env.DB_PASSWORD || 'password',
+          host: process.env.PGHOST || process.env.DB_HOST || 'localhost',
+          port: process.env.PGPORT || process.env.DB_PORT || 5432,
+          database: process.env.PGDATABASE || process.env.DB_NAME || 'quote_generator',
+          user: process.env.PGUSER || process.env.DB_USER || 'postgres',
+          password: process.env.PGPASSWORD || process.env.DB_PASSWORD || 'password',
+          ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
         },
         tableName: 'business_context',
         columns: {
@@ -244,7 +245,15 @@ class RAGService {
       const prompt = this.createPrompt(query, contextString);
 
       // Generate response
-      const response = await this.llm.call(prompt);
+      let response;
+      if (this.llm instanceof ChatOpenAI) {
+        // Use ChatOpenAI format with structured messages
+        const result = await this.llm.invoke(prompt);
+        response = result.content;
+      } else {
+        // Use mock LLM format with string prompt
+        response = await this.llm.call(prompt);
+      }
 
       return {
         response: response.trim(),
@@ -259,7 +268,26 @@ class RAGService {
   }
 
   createPrompt(query, context) {
-    return `You are a helpful customer service assistant for a home improvement company. 
+    if (this.llm instanceof ChatOpenAI) {
+      // Return structured message for ChatOpenAI
+      return [
+        {
+          role: "system",
+          content: `You are a helpful customer service assistant for a home improvement company. 
+Use the following context to answer the customer's question. If the context doesn't contain 
+relevant information, provide a helpful general response and suggest they contact the company directly.
+
+Context:
+${context}`
+        },
+        {
+          role: "user", 
+          content: query
+        }
+      ];
+    } else {
+      // Return string prompt for mock LLM
+      return `You are a helpful customer service assistant for a home improvement company. 
 Use the following context to answer the customer's question. If the context doesn't contain 
 relevant information, provide a helpful general response and suggest they contact the company directly.
 
@@ -269,6 +297,7 @@ ${context}
 Customer Question: ${query}
 
 Response (be helpful, professional, and concise):`;
+    }
   }
 
   calculateConfidence(context) {
