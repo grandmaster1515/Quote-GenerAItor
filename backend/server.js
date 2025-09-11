@@ -90,7 +90,7 @@ app.use('/lead', leadRoutes);
 app.use('/services', servicesRoutes);
 app.use('/cart', cartRoutes);
 
-// Error handling middleware
+// Error handling middleware  
 app.use((error, req, res, next) => {
   console.error('Error:', error);
   

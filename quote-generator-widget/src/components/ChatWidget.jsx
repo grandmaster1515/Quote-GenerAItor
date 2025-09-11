@@ -60,13 +60,20 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
           }
         }
 
-        // Initialize cart system
+        // Initialize cart system with lead data
         initializeCartSystem(tree.dynamicServices);
       };
       
       initializeTree();
     }
   }, [leadData, businessId, decisionTree, apiBaseUrl]);
+
+  // Re-initialize cart system when lead data becomes available
+  useEffect(() => {
+    if (leadData && decisionTree && !cartManager) {
+      initializeCartSystem(decisionTree.dynamicServices || []);
+    }
+  }, [leadData, decisionTree]);
 
   // Initialize cart system
   const initializeCartSystem = (availableServices = []) => {

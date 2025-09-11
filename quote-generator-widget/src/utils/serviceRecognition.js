@@ -18,12 +18,12 @@ export class ServiceRecognitionEngine {
   analyzeMessage(message, conversationContext = []) {
     const normalizedMessage = message.toLowerCase().trim();
     
-    // Skip analysis for very short messages
-    if (normalizedMessage.length < 5) {
+    // Skip analysis for very short messages unless they're affirmative responses
+    if (normalizedMessage.length < 3) {
       return null;
     }
 
-    // Extract potential services
+    // Extract potential services from current message and recent context
     const detectedServices = this.detectServices(normalizedMessage);
     const measurements = this.extractMeasurements(normalizedMessage);
     const urgency = this.detectUrgency(normalizedMessage);
@@ -32,9 +32,29 @@ export class ServiceRecognitionEngine {
     // Check if message suggests adding to cart
     const shouldSuggestCart = this.shouldSuggestAddToCart(normalizedMessage);
     
-    if (detectedServices.length > 0 && shouldSuggestCart) {
+    // If no services detected in current message but it's an affirmative response,
+    // check recent conversation for services
+    let servicesToAnalyze = detectedServices;
+    if (servicesToAnalyze.length === 0 && shouldSuggestCart && conversationContext.length > 0) {
+      const recentMessages = conversationContext.slice(-3); // Look at last 3 messages
+      for (const contextMessage of recentMessages) {
+        if (contextMessage.sender === 'bot') {
+          const contextServices = this.detectServices(contextMessage.text.toLowerCase());
+          servicesToAnalyze = servicesToAnalyze.concat(contextServices);
+        }
+      }
+    }
+    
+    console.log('Service Recognition Debug:', {
+      message: normalizedMessage,
+      detectedServices: servicesToAnalyze,
+      shouldSuggestCart,
+      contextChecked: conversationContext.length > 0
+    });
+    
+    if (servicesToAnalyze.length > 0 && shouldSuggestCart) {
       // Return the best match
-      const bestService = detectedServices[0];
+      const bestService = servicesToAnalyze[0];
       
       return {
         shouldShowPopup: true,
@@ -299,7 +319,11 @@ export class ServiceRecognitionEngine {
       /(?:schedule|book|arrange|set up)/i,
       /(?:get|receive|obtain)\s+(?:service|help|estimate)/i,
       /\d+\s+(?:windows?|rooms?|sqft|feet|doors?)/i, // Contains measurements
-      /(?:have|got)\s+(?:a|\d+)/i // "I have 20 windows"
+      /(?:have|got)\s+(?:a|\d+)/i, // "I have 20 windows"
+      /^(?:yes|yeah|yep|sure|okay|ok|definitely|absolutely)$/i, // Affirmative responses
+      /^yes\s+/i, // "Yes, I need..."
+      /(?:add|put)\s+(?:it|this|that)\s+(?:in|to)\s+(?:cart|list)/i, // Direct cart requests
+      /(?:interested|interested in)/i // Interest expressions
     ];
 
     // Negative indicators (don't suggest cart)
@@ -307,7 +331,8 @@ export class ServiceRecognitionEngine {
       /(?:just|only)\s+(?:asking|wondering|curious)/i,
       /(?:general|basic)\s+(?:question|info|information)/i,
       /(?:what is|what are|tell me about)/i,
-      /(?:thanks|thank you|goodbye|bye)/i
+      /(?:thanks|thank you|goodbye|bye)$/i,
+      /^(?:no|nope|not|never)$/i // Negative responses
     ];
 
     // Check negative indicators first
