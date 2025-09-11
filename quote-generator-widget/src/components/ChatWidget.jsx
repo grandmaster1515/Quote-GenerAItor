@@ -3,8 +3,13 @@ import ChatBubble from './ChatBubble';
 import MessageList from './MessageList';
 import PhotoUpload from './PhotoUpload';
 import LeadForm from './LeadForm';
+import CartIcon from './CartIcon';
+import CartSidebar from './CartSidebar';
+import AddToCartPopup from './AddToCartPopup';
 import { Send, X, MessageCircle, Camera, ArrowLeft } from 'lucide-react';
 import { DecisionTreeState } from '../utils/decisionTree';
+import { CartManager } from '../utils/cartManager';
+import { ServiceRecognitionEngine } from '../utils/serviceRecognition';
 import '../styles/ChatWidget.css';
 
 const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
@@ -16,6 +21,15 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
   const [leadData, setLeadData] = useState(null);
   const [decisionTree, setDecisionTree] = useState(null);
   const [currentOptions, setCurrentOptions] = useState([]);
+  
+  // Cart-related state
+  const [cartManager, setCartManager] = useState(null);
+  const [cartData, setCartData] = useState({ cartItems: [], itemCount: 0, totalEstimate: 0 });
+  const [showCartSidebar, setShowCartSidebar] = useState(false);
+  const [showAddToCartPopup, setShowAddToCartPopup] = useState(false);
+  const [pendingCartItem, setPendingCartItem] = useState(null);
+  const [serviceRecognition, setServiceRecognition] = useState(null);
+  
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -45,11 +59,36 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
             console.warn('Failed to load decision tree state:', error);
           }
         }
+
+        // Initialize cart system
+        initializeCartSystem(tree.dynamicServices);
       };
       
       initializeTree();
     }
   }, [leadData, businessId, decisionTree, apiBaseUrl]);
+
+  // Initialize cart system
+  const initializeCartSystem = (availableServices = []) => {
+    // Initialize cart manager
+    const cart = new CartManager(businessId, leadData?.leadId);
+    setCartManager(cart);
+
+    // Initialize service recognition with available services
+    const recognition = new ServiceRecognitionEngine(availableServices);
+    setServiceRecognition(recognition);
+
+    // Subscribe to cart changes
+    const unsubscribe = cart.subscribe((cartData) => {
+      setCartData(cartData);
+    });
+
+    // Initial cart data
+    setCartData(cart.exportCartData());
+
+    // Cleanup subscription on unmount
+    return unsubscribe;
+  };
 
   // Save decision tree state to localStorage
   useEffect(() => {
@@ -114,6 +153,18 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
 
       const data = await response.json();
       addMessage('bot', data.response);
+
+      // Analyze message for service recognition (after bot response)
+      if (serviceRecognition && leadData) {
+        const analysisResult = serviceRecognition.analyzeMessage(userMessage, messages);
+        if (analysisResult && analysisResult.shouldShowPopup) {
+          // Wait a moment for the bot response to be seen
+          setTimeout(() => {
+            setPendingCartItem(analysisResult);
+            setShowAddToCartPopup(true);
+          }, 1000);
+        }
+      }
 
       // Check if we should show lead form based on bot response
       if (data.shouldCollectLead && !leadData) {
@@ -248,6 +299,102 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
     }
   };
 
+  // Cart event handlers
+  const handleAddToCart = async (cartItem) => {
+    if (cartManager) {
+      const addedItem = cartManager.addItem(cartItem);
+      addMessage('bot', `✅ Added "${cartItem.serviceName}" to your service needs. You can view your items using the cart icon.`);
+      console.log('Added to cart:', addedItem);
+      
+      // Sync with backend if lead data exists
+      if (leadData) {
+        try {
+          await cartManager.syncWithBackend(apiBaseUrl);
+        } catch (error) {
+          console.warn('Failed to sync cart with backend:', error);
+        }
+      }
+    }
+    setShowAddToCartPopup(false);
+    setPendingCartItem(null);
+  };
+
+  const handleCartIconClick = () => {
+    setShowCartSidebar(!showCartSidebar);
+  };
+
+  const handleRemoveFromCart = async (itemId) => {
+    if (cartManager) {
+      const removed = cartManager.removeItem(itemId);
+      if (removed) {
+        addMessage('bot', 'Item removed from your service needs.');
+        
+        // Sync with backend if lead data exists
+        if (leadData) {
+          try {
+            await cartManager.syncWithBackend(apiBaseUrl);
+          } catch (error) {
+            console.warn('Failed to sync cart with backend:', error);
+          }
+        }
+      }
+    }
+  };
+
+  const handleEditCartItem = (item) => {
+    // Pre-fill the add-to-cart popup with existing item data
+    setPendingCartItem({
+      service: item.serviceName,
+      serviceType: item.serviceType,
+      details: item.details,
+      estimatedPrice: item.estimatedPrice,
+      confidenceScore: item.aiConfidenceScore
+    });
+    setShowAddToCartPopup(true);
+    setShowCartSidebar(false);
+  };
+
+  const handleRequestQuote = async () => {
+    if (!cartManager || cartData.itemCount === 0) return;
+
+    try {
+      setIsLoading(true);
+      
+      // Export cart data for quote request
+      const cartExport = cartManager.exportCartData();
+      
+      // Create a quote request
+      const response = await fetch(`${apiBaseUrl}/cart/quote-request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          businessId,
+          leadData,
+          cartItems: cartExport.cartItems,
+          totalEstimate: cartExport.totalEstimate,
+          requestType: 'service-cart'
+        }),
+      });
+
+      if (response.ok) {
+        addMessage('bot', `🎉 Quote request submitted! We'll review your ${cartData.itemCount} service${cartData.itemCount !== 1 ? 's' : ''} and get back to you with a detailed quote soon.`);
+        setShowCartSidebar(false);
+        
+        // Optionally clear cart after successful quote request
+        // cartManager.clearCart();
+      } else {
+        throw new Error('Failed to submit quote request');
+      }
+    } catch (error) {
+      console.error('Error submitting quote request:', error);
+      addMessage('bot', 'Sorry, there was an error submitting your quote request. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (!isOpen) {
     return (
       <ChatBubble 
@@ -347,6 +494,41 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
           </div>
         )}
       </div>
+
+      {/* Cart Components - show only when lead data exists */}
+      {leadData && cartManager && (
+        <>
+          <CartIcon 
+            itemCount={cartData.itemCount}
+            onClick={handleCartIconClick}
+            isExpanded={showCartSidebar}
+          />
+          
+          <CartSidebar
+            isOpen={showCartSidebar}
+            onClose={() => setShowCartSidebar(false)}
+            cartItems={cartData.cartItems}
+            onRemoveItem={handleRemoveFromCart}
+            onEditItem={handleEditCartItem}
+            onRequestQuote={handleRequestQuote}
+            totalEstimate={cartData.totalEstimate}
+          />
+          
+          <AddToCartPopup
+            isOpen={showAddToCartPopup}
+            onClose={() => {
+              setShowAddToCartPopup(false);
+              setPendingCartItem(null);
+            }}
+            onAddToCart={handleAddToCart}
+            serviceData={pendingCartItem}
+            onCancel={() => {
+              setShowAddToCartPopup(false);
+              setPendingCartItem(null);
+            }}
+          />
+        </>
+      )}
     </div>
   );
 };

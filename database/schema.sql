@@ -93,6 +93,33 @@ CREATE TABLE file_uploads (
     uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create cart_sessions table to track service cart data
+CREATE TABLE cart_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_id VARCHAR(255) UNIQUE NOT NULL,
+    business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+    lead_id UUID REFERENCES leads(id) ON DELETE SET NULL,
+    cart_data JSONB NOT NULL DEFAULT '[]',
+    total_estimate DECIMAL(10,2) DEFAULT 0,
+    item_count INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create quote_requests table to track cart-based quote requests
+CREATE TABLE quote_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+    lead_id UUID REFERENCES leads(id) ON DELETE SET NULL,
+    request_type VARCHAR(50) DEFAULT 'service-cart',
+    cart_items JSONB NOT NULL,
+    total_estimate DECIMAL(10,2) DEFAULT 0,
+    status VARCHAR(50) DEFAULT 'pending',
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create indexes for performance
 CREATE INDEX idx_leads_business_id ON leads(business_id);
 CREATE INDEX idx_leads_email ON leads(email);
@@ -117,6 +144,16 @@ CREATE INDEX idx_chat_sessions_started_at ON chat_sessions(started_at DESC);
 
 CREATE INDEX idx_file_uploads_business_id ON file_uploads(business_id);
 CREATE INDEX idx_file_uploads_lead_id ON file_uploads(lead_id);
+
+CREATE INDEX idx_cart_sessions_session_id ON cart_sessions(session_id);
+CREATE INDEX idx_cart_sessions_business_id ON cart_sessions(business_id);
+CREATE INDEX idx_cart_sessions_lead_id ON cart_sessions(lead_id);
+CREATE INDEX idx_cart_sessions_updated_at ON cart_sessions(updated_at DESC);
+
+CREATE INDEX idx_quote_requests_business_id ON quote_requests(business_id);
+CREATE INDEX idx_quote_requests_lead_id ON quote_requests(lead_id);
+CREATE INDEX idx_quote_requests_status ON quote_requests(status);
+CREATE INDEX idx_quote_requests_created_at ON quote_requests(created_at DESC);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()

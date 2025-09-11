@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cart System Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .info { background-color: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { 
+            background-color: #6c757d; 
+            cursor: not-allowed; 
+        }
+        #widget-container {
+            position: relative;
+            height: 600px;
+            border: 2px dashed #ccc;
+            background: #f9f9f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .test-log {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🛒 Shopping Cart System Test</h1>
+    
+    <div class="test-container">
+        <h2>Test Environment Status</h2>
+        <div id="status-container">
+            <div class="status info">Initializing tests...</div>
+        </div>
+    </div>
+
+    <div class="test-container">
+        <h2>Cart System Tests</h2>
+        <div>
+            <button onclick="testCartManager()">Test CartManager</button>
+            <button onclick="testServiceRecognition()">Test AI Service Recognition</button>
+            <button onclick="testLocalStorage()">Test LocalStorage Persistence</button>
+            <button onclick="simulateUserJourney()">Simulate Complete User Journey</button>
+            <button onclick="clearTests()">Clear Results</button>
+        </div>
+        <div id="test-results" class="test-log"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>Widget Demo</h2>
+        <p>Chat widget with cart functionality will appear below:</p>
+        <div id="widget-container">
+            <p>Widget will be embedded here</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import ChatWidget from './src/components/ChatWidget.jsx';
+        import { CartManager } from './src/utils/cartManager.js';
+        import { ServiceRecognitionEngine } from './src/utils/serviceRecognition.js';
+
+        // Mock business ID for testing
+        const TEST_BUSINESS_ID = '550e8400-e29b-41d4-a716-446655440000';
+        const TEST_LEAD_ID = 'test-lead-123';
+        
+        let testResults = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            testResults.push(logEntry);
+            updateTestDisplay();
+            console.log(logEntry);
+        }
+
+        function updateTestDisplay() {
+            const container = document.getElementById('test-results');
+            container.innerHTML = testResults.map(entry => `<div>${entry}</div>`).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function updateStatus(message, type = 'info') {
+            const container = document.getElementById('status-container');
+            container.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        // Test CartManager functionality
+        window.testCartManager = async function() {
+            log('Starting CartManager tests...', 'info');
+            
+            try {
+                // Initialize cart manager
+                const cartManager = new CartManager(TEST_BUSINESS_ID, TEST_LEAD_ID);
+                log('✓ CartManager initialized successfully');
+
+                // Test adding items
+                const testItem = {
+                    serviceName: 'Window Cleaning',
+                    serviceType: 'window-cleaning',
+                    details: {
+                        quantity: 10,
+                        measurement: '10 windows',
+                        frequency: 'monthly',
+                        specifications: ['interior', 'exterior'],
+                        customRequirements: 'Please be careful with screens'
+                    },
+                    estimatedPrice: 80
+                };
+
+                const addedItem = cartManager.addItem(testItem);
+                log(`✓ Item added to cart: ${addedItem.id}`);
+
+                // Test cart data export
+                const cartData = cartManager.exportCartData();
+                log(`✓ Cart exported - ${cartData.itemCount} items, $${cartData.totalEstimate} total`);
+
+                // Test item removal
+                const removed = cartManager.removeItem(addedItem.id);
+                log(removed ? '✓ Item removed successfully' : '✗ Failed to remove item');
+
+                // Test cart clearing
+                cartManager.clearCart();
+                const clearedData = cartManager.exportCartData();
+                log(`✓ Cart cleared - ${clearedData.itemCount} items remaining`);
+
+                log('CartManager tests completed successfully!', 'success');
+            } catch (error) {
+                log(`✗ CartManager test failed: ${error.message}`, 'error');
+            }
+        };
+
+        // Test Service Recognition Engine
+        window.testServiceRecognition = function() {
+            log('Starting Service Recognition tests...', 'info');
+            
+            try {
+                const mockServices = [
+                    { name: 'Window Cleaning', description: 'Professional window cleaning' },
+                    { name: 'Lawn Care', description: 'Complete lawn maintenance' },
+                    { name: 'HVAC Service', description: 'Heating and cooling services' }
+                ];
+
+                const recognition = new ServiceRecognitionEngine(mockServices);
+                log('✓ ServiceRecognitionEngine initialized');
+
+                // Test various user messages
+                const testMessages = [
+                    'I need my 15 windows cleaned inside and outside',
+                    'Can you help with lawn mowing for my 2000 sqft yard?',
+                    'My HVAC system needs repair urgently',
+                    'What services do you offer?', // Should not trigger
+                    'I have 3 rooms that need cleaning monthly'
+                ];
+
+                testMessages.forEach((message, index) => {
+                    const result = recognition.analyzeMessage(message);
+                    if (result && result.shouldShowPopup) {
+                        log(`✓ Message ${index + 1}: Detected "${result.service}" (confidence: ${result.confidenceScore.toFixed(2)})`);
+                    } else {
+                        log(`- Message ${index + 1}: No service detected (expected for some messages)`);
+                    }
+                });
+
+                log('Service Recognition tests completed!', 'success');
+            } catch (error) {
+                log(`✗ Service Recognition test failed: ${error.message}`, 'error');
+            }
+        };
+
+        // Test localStorage persistence
+        window.testLocalStorage = function() {
+            log('Starting LocalStorage persistence tests...', 'info');
+            
+            try {
+                const cartManager1 = new CartManager(TEST_BUSINESS_ID, TEST_LEAD_ID);
+                
+                // Add item to first instance
+                cartManager1.addItem({
+                    serviceName: 'Test Service',
+                    serviceType: 'general',
+                    details: { quantity: 1 },
+                    estimatedPrice: 50
+                });
+                
+                log('✓ Added item to first cart instance');
+
+                // Create second instance and check if data persists
+                const cartManager2 = new CartManager(TEST_BUSINESS_ID, TEST_LEAD_ID);
+                const persistedData = cartManager2.exportCartData();
+                
+                if (persistedData.itemCount > 0) {
+                    log(`✓ Data persisted - ${persistedData.itemCount} items found`);
+                } else {
+                    log('✗ Data not persisted', 'error');
+                }
+
+                // Clean up
+                cartManager2.clearCart();
+                log('✓ LocalStorage tests completed!', 'success');
+            } catch (error) {
+                log(`✗ LocalStorage test failed: ${error.message}`, 'error');
+            }
+        };
+
+        // Simulate complete user journey
+        window.simulateUserJourney = function() {
+            log('Starting complete user journey simulation...', 'info');
+            
+            try {
+                // Step 1: User opens chat widget
+                log('👤 User opens chat widget');
+                
+                // Step 2: User submits lead form
+                log('📝 User submits lead information');
+                const mockLeadData = {
+                    name: 'John Doe',
+                    email: 'john@example.com',
+                    phone: '555-123-4567',
+                    leadId: TEST_LEAD_ID
+                };
+
+                // Step 3: Initialize cart system
+                const cartManager = new CartManager(TEST_BUSINESS_ID, TEST_LEAD_ID);
+                const recognition = new ServiceRecognitionEngine([
+                    { name: 'Window Cleaning', description: 'Professional window cleaning' }
+                ]);
+                log('🛒 Cart system initialized after lead capture');
+
+                // Step 4: User sends message about windows
+                const userMessage = 'I need help cleaning 12 windows in my house';
+                const analysisResult = recognition.analyzeMessage(userMessage);
+                
+                if (analysisResult && analysisResult.shouldShowPopup) {
+                    log(`🤖 AI detected service need: ${analysisResult.service}`);
+                    
+                    // Step 5: User adds item to cart
+                    const cartItem = {
+                        serviceName: analysisResult.service,
+                        serviceType: analysisResult.serviceType,
+                        details: analysisResult.details,
+                        estimatedPrice: analysisResult.estimatedPrice
+                    };
+                    
+                    const addedItem = cartManager.addItem(cartItem);
+                    log(`✅ Item added to cart: ${addedItem.serviceName}`);
+                    
+                    // Step 6: User views cart
+                    const cartData = cartManager.exportCartData();
+                    log(`👀 User views cart: ${cartData.itemCount} items, $${cartData.totalEstimate} estimated total`);
+                    
+                    // Step 7: User requests quote
+                    log('📋 User requests quote for cart items');
+                    log('✉️ Quote request would be sent to backend');
+                    
+                    log('🎉 User journey completed successfully!', 'success');
+                } else {
+                    log('⚠️ AI service recognition did not trigger as expected', 'error');
+                }
+                
+            } catch (error) {
+                log(`✗ User journey simulation failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.clearTests = function() {
+            testResults = [];
+            updateTestDisplay();
+            log('Test results cleared', 'info');
+        };
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStatus('✅ Test environment ready - Cart system tests available', 'success');
+            log('Cart test environment initialized', 'info');
+        });
+
+    </script>
+</body>
+</html>
