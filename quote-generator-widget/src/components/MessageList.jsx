@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { Bot, User, Image as ImageIcon, Loader } from 'lucide-react';
+import OptionBubbles from './OptionBubbles';
 import '../styles/MessageList.css';
 
-const MessageList = ({ messages, isLoading }) => {
+const MessageList = ({ messages, isLoading, onOptionSelect, currentOptions = [] }) => {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -76,6 +77,22 @@ const MessageList = ({ messages, isLoading }) => {
                 <span>Typing...</span>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Show option bubbles after the last bot message */}
+      {!isLoading && currentOptions.length > 0 && messages.length > 0 && (
+        <div className="message bot-message">
+          <div className="message-avatar">
+            <Bot size={16} />
+          </div>
+          <div className="message-content">
+            <OptionBubbles 
+              options={currentOptions} 
+              onOptionSelect={onOptionSelect}
+              disabled={isLoading}
+            />
           </div>
         </div>
       )}

@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import LeadsPipeline from './components/LeadsPipeline';
 import RagManager from './components/RagManager';
 import QuoteGenerator from './components/QuoteGenerator';
+import ServicesManager from './components/ServicesManager';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('leads');
   // For demo purposes, using a hardcoded business ID
   // In production, this would come from authentication/routing
-  const businessId = '123';
+  const businessId = '550e8400-e29b-41d4-a716-446655440000';
 
   const tabs = [
     {
@@ -19,6 +20,16 @@ const App = () => {
         </svg>
       ),
       component: <LeadsPipeline businessId={businessId} />
+    },
+    {
+      id: 'services',
+      name: 'Services',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      ),
+      component: <ServicesManager businessId={businessId} />
     },
     {
       id: 'knowledge',

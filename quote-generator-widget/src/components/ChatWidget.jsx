@@ -3,7 +3,8 @@ import ChatBubble from './ChatBubble';
 import MessageList from './MessageList';
 import PhotoUpload from './PhotoUpload';
 import LeadForm from './LeadForm';
-import { Send, X, MessageCircle, Camera } from 'lucide-react';
+import { Send, X, MessageCircle, Camera, ArrowLeft } from 'lucide-react';
+import { DecisionTreeState } from '../utils/decisionTree';
 import '../styles/ChatWidget.css';
 
 const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
@@ -13,6 +14,8 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showLeadForm, setShowLeadForm] = useState(true); // Show form first
   const [leadData, setLeadData] = useState(null);
+  const [decisionTree, setDecisionTree] = useState(null);
+  const [currentOptions, setCurrentOptions] = useState([]);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -20,6 +23,40 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
       inputRef.current.focus();
     }
   }, [isOpen]);
+
+  // Initialize decision tree when lead form is submitted
+  useEffect(() => {
+    if (leadData && !decisionTree) {
+      const tree = new DecisionTreeState(undefined, businessId, apiBaseUrl);
+      setDecisionTree(tree);
+      
+      // Load services from database
+      const initializeTree = async () => {
+        await tree.loadServices();
+        setCurrentOptions(tree.getCurrentOptions());
+        
+        // Load persisted state if available
+        const savedState = localStorage.getItem(`decisionTree_${businessId}`);
+        if (savedState) {
+          try {
+            tree.setState(JSON.parse(savedState));
+            setCurrentOptions(tree.getCurrentOptions());
+          } catch (error) {
+            console.warn('Failed to load decision tree state:', error);
+          }
+        }
+      };
+      
+      initializeTree();
+    }
+  }, [leadData, businessId, decisionTree, apiBaseUrl]);
+
+  // Save decision tree state to localStorage
+  useEffect(() => {
+    if (decisionTree && businessId) {
+      localStorage.setItem(`decisionTree_${businessId}`, JSON.stringify(decisionTree.getState()));
+    }
+  }, [decisionTree, businessId]);
 
   const addMessage = (type, content, photoUrl = null) => {
     const newMessage = {
@@ -41,7 +78,24 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
     addMessage('user', userMessage);
     setIsLoading(true);
 
+    // Clear current options when user types
+    setCurrentOptions([]);
+
     try {
+      // Check if decision tree should handle this input
+      if (decisionTree && decisionTree.expectsTextInput()) {
+        const handled = decisionTree.handleTextInput(userMessage);
+        if (handled) {
+          // Decision tree handled the input, show the next message and options
+          const message = decisionTree.getCurrentMessage();
+          addMessage('bot', message);
+          setCurrentOptions(decisionTree.getCurrentOptions());
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Regular API call for free-form chat
       const response = await fetch(`${apiBaseUrl}/chat`, {
         method: 'POST',
         headers: {
@@ -77,6 +131,39 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
+    }
+  };
+
+  const handleOptionSelect = (option) => {
+    if (!decisionTree || isLoading) return;
+
+    // Add user's selection as a message
+    addMessage('user', option.text);
+    
+    // Clear current options immediately
+    setCurrentOptions([]);
+    setIsLoading(true);
+
+    // Process the selection
+    decisionTree.selectOption(option);
+    
+    // Simulate thinking time for better UX
+    setTimeout(() => {
+      const message = decisionTree.getCurrentMessage();
+      addMessage('bot', message);
+      setCurrentOptions(decisionTree.getCurrentOptions());
+      setIsLoading(false);
+    }, 500);
+  };
+
+  const handleGoBack = () => {
+    if (!decisionTree) return;
+
+    const canGoBack = decisionTree.goBack();
+    if (canGoBack) {
+      const message = decisionTree.getCurrentMessage();
+      addMessage('bot', `Let me take you back. ${message}`);
+      setCurrentOptions(decisionTree.getCurrentOptions());
     }
   };
 
@@ -131,15 +218,30 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
       setLeadData(leadInfo);
       setShowLeadForm(false);
       
-      // Initialize chat with welcome message
-      setMessages([
-        {
-          id: 1,
-          type: 'bot',
-          content: `Hi ${leadInfo.name}! Thanks for providing your information. How can I help you with your ${leadInfo.projectType || 'project'} today? Feel free to ask questions or upload photos.`,
-          timestamp: new Date()
-        }
-      ]);
+      // Initialize decision tree
+      const tree = new DecisionTreeState(undefined, businessId, apiBaseUrl);
+      setDecisionTree(tree);
+      
+      // Initialize tree and load services
+      const initializeTree = async () => {
+        await tree.loadServices();
+        
+        // Initialize chat with welcome message and decision tree
+        const welcomeMessage = `Hi ${leadInfo.name}! Thanks for providing your information. ${tree.getCurrentMessage()}`;
+        setMessages([
+          {
+            id: 1,
+            type: 'bot',
+            content: welcomeMessage,
+            timestamp: new Date()
+          }
+        ]);
+        
+        // Set initial options
+        setCurrentOptions(tree.getCurrentOptions());
+      };
+      
+      initializeTree();
     } catch (error) {
       console.error('Error saving lead:', error);
       addMessage('bot', 'Sorry, there was an error saving your information. Please try again.');
@@ -160,6 +262,16 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
       <div className="chat-widget">
         <div className="chat-header">
           <div className="chat-header-content">
+            {decisionTree && decisionTree.history.length > 0 && (
+              <button 
+                className="back-button"
+                onClick={handleGoBack}
+                aria-label="Go back"
+                title="Go back"
+              >
+                <ArrowLeft size={16} />
+              </button>
+            )}
             <MessageCircle size={20} />
             <span>Chat with us</span>
           </div>
@@ -182,7 +294,12 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
               }}
             />
           ) : (
-            <MessageList messages={messages} isLoading={isLoading} />
+            <MessageList 
+              messages={messages} 
+              isLoading={isLoading} 
+              onOptionSelect={handleOptionSelect}
+              currentOptions={currentOptions}
+            />
           )}
         </div>
 

@@ -6,6 +6,23 @@ INSERT INTO businesses (id, name, industry, website, phone, email, address) VALU
 ('550e8400-e29b-41d4-a716-446655440000', 'ABC Home Services', 'Home Improvement', 'https://abchomeservices.com', '(555) 123-4567', 'info@abchomeservices.com', '123 Main St, Anytown, ST 12345'),
 ('550e8400-e29b-41d4-a716-446655440001', 'Quality HVAC Solutions', 'HVAC', 'https://qualityhvac.com', '(555) 234-5678', 'contact@qualityhvac.com', '456 Oak Ave, Somewhere, ST 67890');
 
+-- Insert sample services for businesses
+INSERT INTO services (business_id, name, description, pricing_info, display_order) VALUES
+-- ABC Home Services
+('550e8400-e29b-41d4-a716-446655440000', 'HVAC Services', 'Heating, ventilation, and air conditioning installation, repair, and maintenance.', 'Starting at $150', 1),
+('550e8400-e29b-41d4-a716-446655440000', 'Plumbing Services', 'Complete plumbing services from repairs to installations.', 'Starting at $125', 2),
+('550e8400-e29b-41d4-a716-446655440000', 'Electrical Services', 'Licensed electrical work including wiring, panels, and installations.', 'Starting at $100', 3),
+('550e8400-e29b-41d4-a716-446655440000', 'Kitchen Remodeling', 'Complete kitchen renovations and updates.', 'Starting at $10,000', 4),
+('550e8400-e29b-41d4-a716-446655440000', 'Bathroom Remodeling', 'Bathroom renovations and improvements.', 'Starting at $5,000', 5),
+('550e8400-e29b-41d4-a716-446655440000', 'Roofing Services', 'Roof repair, replacement, and maintenance.', 'Starting at $200', 6),
+
+-- Quality HVAC Solutions
+('550e8400-e29b-41d4-a716-446655440001', 'HVAC Installation', 'New heating and cooling system installation.', '$3,000 - $15,000', 1),
+('550e8400-e29b-41d4-a716-446655440001', 'HVAC Repair', 'Heating and cooling system repairs.', 'Starting at $150', 2),
+('550e8400-e29b-41d4-a716-446655440001', 'HVAC Maintenance', 'Regular system maintenance and tune-ups.', '$150/year plans available', 3),
+('550e8400-e29b-41d4-a716-446655440001', 'Duct Cleaning', 'Air duct cleaning and sanitization.', 'Starting at $300', 4),
+('550e8400-e29b-41d4-a716-446655440001', 'Air Quality Solutions', 'Indoor air quality improvement systems.', 'Starting at $500', 5);
+
 -- Insert sample business context for RAG
 INSERT INTO business_context (business_id, content_type, question, answer, keywords) VALUES
 -- ABC Home Services context

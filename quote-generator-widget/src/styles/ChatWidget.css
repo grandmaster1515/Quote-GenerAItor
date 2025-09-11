@@ -35,7 +35,7 @@
   font-size: 16px;
 }
 
-.close-button {
+.close-button, .back-button {
   background: none;
   border: none;
   color: white;
@@ -48,7 +48,11 @@
   transition: background-color 0.2s;
 }
 
-.close-button:hover {
+.back-button {
+  margin-right: 8px;
+}
+
+.close-button:hover, .back-button:hover {
   background: rgba(255, 255, 255, 0.1);
 }
 

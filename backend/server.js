@@ -9,6 +9,7 @@ const fs = require('fs');
 const chatRoutes = require('./routes/chat');
 const uploadRoutes = require('./routes/upload');
 const leadRoutes = require('./routes/lead');
+const servicesRoutes = require('./routes/services');
 
 // Load environment variables
 dotenv.config();
@@ -78,11 +79,13 @@ app.get('/health', (req, res) => {
 app.use('/api/chat', chatRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/lead', leadRoutes);
+app.use('/api/services', servicesRoutes);
 
 // For backward compatibility with frontend expecting routes without /api prefix
 app.use('/chat', chatRoutes);
 app.use('/upload', uploadRoutes);
 app.use('/lead', leadRoutes);
+app.use('/services', servicesRoutes);
 
 // Error handling middleware
 app.use((error, req, res, next) => {

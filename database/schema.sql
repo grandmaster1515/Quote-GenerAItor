@@ -39,6 +39,19 @@ CREATE TABLE leads (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Create services table for business service offerings
+CREATE TABLE services (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    pricing_info VARCHAR(255),
+    is_active BOOLEAN DEFAULT TRUE,
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create business_context table for RAG knowledge base
 CREATE TABLE business_context (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -86,6 +99,10 @@ CREATE INDEX idx_leads_email ON leads(email);
 CREATE INDEX idx_leads_status ON leads(status);
 CREATE INDEX idx_leads_created_at ON leads(created_at DESC);
 
+CREATE INDEX idx_services_business_id ON services(business_id);
+CREATE INDEX idx_services_active ON services(is_active);
+CREATE INDEX idx_services_display_order ON services(display_order);
+
 CREATE INDEX idx_business_context_business_id ON business_context(business_id);
 CREATE INDEX idx_business_context_content_type ON business_context(content_type);
 CREATE INDEX idx_business_context_active ON business_context(is_active);
@@ -115,6 +132,9 @@ CREATE TRIGGER update_businesses_updated_at BEFORE UPDATE ON businesses
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_leads_updated_at BEFORE UPDATE ON leads
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_services_updated_at BEFORE UPDATE ON services
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_business_context_updated_at BEFORE UPDATE ON business_context
