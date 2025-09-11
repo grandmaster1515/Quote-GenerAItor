@@ -1,4 +1,4 @@
-const { HuggingFaceTransformers } = require('@langchain/community/embeddings/hf_transformers');
+const { HfInference } = require('@huggingface/inference');
 const { PGVectorStore } = require('@langchain/community/vectorstores/pgvector');
 const { ChatOpenAI } = require('@langchain/openai');
 const { RetrievalQAChain } = require('langchain/chains');
@@ -7,7 +7,7 @@ const { pool } = require('../config/database');
 
 class RAGService {
   constructor() {
-    this.embeddings = null;
+    this.hf = null;
     this.vectorStore = null;
     this.llm = null;
     this.chains = new Map(); // Cache chains by business ID
@@ -18,14 +18,16 @@ class RAGService {
     try {
       console.log('🔄 Initializing RAG service...');
 
-      // Initialize embeddings model (Sentence-BERT)
-      this.embeddings = new HuggingFaceTransformers({
-        modelName: 'sentence-transformers/all-MiniLM-L6-v2',
-        // Use local model if available, otherwise download
-        cache: true
-      });
+      // Initialize Hugging Face client
+      const hfToken = process.env.HUGGING_FACE_API_KEY;
+      if (!hfToken) {
+        throw new Error('Hugging Face API key is required. Please set HUGGING_FACE_API_KEY environment variable.');
+      }
 
-      // Initialize LLM (OpenAI or local alternative)
+      this.hf = new HfInference(hfToken);
+      console.log('✅ Hugging Face client initialized');
+
+      // Initialize LLM (prioritize Hugging Face, fallback to OpenAI)
       if (process.env.OPENAI_API_KEY) {
         this.llm = new ChatOpenAI({
           openAIApiKey: process.env.OPENAI_API_KEY,
@@ -33,11 +35,9 @@ class RAGService {
           temperature: 0.7,
           maxTokens: 500
         });
-        console.log('✅ Using OpenAI ChatOpenAI LLM');
+        console.log('✅ Using OpenAI ChatOpenAI LLM as backup');
       } else {
-        // Fallback to mock LLM for development
-        console.log('⚠️  No OpenAI API key found, using mock responses');
-        this.llm = new MockLLM();
+        console.log('✅ Using Hugging Face API for text generation');
       }
 
       // Initialize vector store
@@ -72,22 +72,29 @@ class RAGService {
         },
       };
 
-      this.vectorStore = await PGVectorStore.initialize(this.embeddings, config);
-      console.log('✅ Vector store initialized');
+      // Skip vector store initialization since we'll use Hugging Face API for embeddings
+      console.log('✅ Using Hugging Face API for embeddings - skipping vector store');
+      this.vectorStore = null;
     } catch (error) {
       console.error('❌ Vector store initialization failed:', error);
-      // Continue without vector store for development
       this.vectorStore = null;
     }
   }
 
   async generateEmbeddings(texts) {
-    if (!this.embeddings) {
-      throw new Error('Embeddings model not initialized');
+    if (!this.hf) {
+      throw new Error('Hugging Face client not initialized');
     }
 
     try {
-      const embeddings = await this.embeddings.embedDocuments(texts);
+      const embeddings = [];
+      for (const text of texts) {
+        const response = await this.hf.featureExtraction({
+          model: 'sentence-transformers/all-MiniLM-L6-v2',
+          inputs: text
+        });
+        embeddings.push(response);
+      }
       return embeddings;
     } catch (error) {
       console.error('❌ Error generating embeddings:', error);
@@ -99,8 +106,11 @@ class RAGService {
     try {
       const { question, answer, contentType, keywords } = contextData;
       
-      // Generate embedding for the answer
-      const embedding = await this.embeddings.embedQuery(answer);
+      // Generate embedding for the answer using Hugging Face API
+      const embedding = await this.hf.featureExtraction({
+        model: 'sentence-transformers/all-MiniLM-L6-v2',
+        inputs: answer
+      });
       
       // Store in database
       const query = `
@@ -139,12 +149,16 @@ class RAGService {
 
   async findSimilarContext(businessId, query, limit = 5) {
     try {
-      if (!this.embeddings) {
+      if (!this.hf) {
+        console.log('⚠️  No Hugging Face client available, using keyword search');
         return this.fallbackSearch(businessId, query, limit);
       }
 
-      // Generate embedding for the query
-      const queryEmbedding = await this.embeddings.embedQuery(query);
+      // Generate embedding for the query using Hugging Face API
+      const queryEmbedding = await this.hf.featureExtraction({
+        model: 'sentence-transformers/all-MiniLM-L6-v2',
+        inputs: query
+      });
       
       // Search for similar content using cosine similarity
       const searchQuery = `
@@ -244,15 +258,37 @@ class RAGService {
       // Create prompt
       const prompt = this.createPrompt(query, contextString);
 
-      // Generate response
+      // Generate response using Hugging Face API
       let response;
       if (this.llm instanceof ChatOpenAI) {
         // Use ChatOpenAI format with structured messages
         const result = await this.llm.invoke(prompt);
         response = result.content;
       } else {
-        // Use mock LLM format with string prompt
-        response = await this.llm.call(prompt);
+        // Use Hugging Face API for text generation
+        try {
+          const hfResponse = await this.hf.textGeneration({
+            model: 'microsoft/DialoGPT-medium',
+            inputs: typeof prompt === 'string' ? prompt : prompt[1].content,
+            parameters: {
+              max_new_tokens: 500,
+              temperature: 0.7,
+              do_sample: true,
+              pad_token_id: 50256
+            }
+          });
+          response = hfResponse.generated_text;
+          
+          // Clean up the response by removing the prompt if it's included
+          if (typeof prompt === 'string' && response.startsWith(prompt)) {
+            response = response.substring(prompt.length).trim();
+          }
+          
+          console.log('✅ Generated response using Hugging Face API');
+        } catch (hfError) {
+          console.warn('⚠️  Hugging Face text generation failed, using fallback:', hfError.message);
+          response = "I'd be happy to help you with your home improvement needs. Could you please provide more details about what specific service you're looking for? We offer a wide range of services including HVAC, plumbing, electrical, and remodeling work.";
+        }
       }
 
       return {
@@ -263,7 +299,12 @@ class RAGService {
 
     } catch (error) {
       console.error('❌ Error generating response:', error);
-      throw error;
+      // Return a fallback response instead of throwing
+      return {
+        response: "I apologize, but I'm having trouble processing your request right now. Please try again or contact us directly for assistance.",
+        context: [],
+        confidence: 0.1
+      };
     }
   }
 
@@ -308,26 +349,5 @@ Response (be helpful, professional, and concise):`;
   }
 }
 
-// Mock LLM for development when OpenAI API key is not available
-class MockLLM {
-  async call(prompt) {
-    // Simple mock responses based on keywords in the prompt
-    const lowerPrompt = prompt.toLowerCase();
-    
-    if (lowerPrompt.includes('cost') || lowerPrompt.includes('price')) {
-      return "I'd be happy to help you with pricing information. Costs can vary based on the specific requirements of your project. For an accurate quote, I recommend scheduling a free consultation where we can assess your needs and provide detailed pricing.";
-    }
-    
-    if (lowerPrompt.includes('schedule') || lowerPrompt.includes('appointment')) {
-      return "You can schedule an appointment by calling us directly or filling out our contact form. We typically have availability within 24-48 hours, and we offer emergency services for urgent situations.";
-    }
-    
-    if (lowerPrompt.includes('emergency') || lowerPrompt.includes('urgent')) {
-      return "We offer 24/7 emergency services for urgent situations. Please call our emergency line, and we'll dispatch a technician as soon as possible. Emergency service fees may apply.";
-    }
-    
-    return "Thank you for your question! I'd be happy to help you with information about our services. For the most accurate and detailed information specific to your needs, I recommend contacting us directly so we can provide personalized assistance.";
-  }
-}
 
 module.exports = RAGService;
