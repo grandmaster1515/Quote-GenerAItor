@@ -71,9 +71,8 @@
 
 .input-container {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
 }
 
 .photo-upload-button {
@@ -96,6 +95,7 @@
   border-color: #667eea;
   color: #667eea;
   transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
 }
 
 .photo-upload-button:disabled {
@@ -147,6 +147,7 @@
 .send-button:hover:not(:disabled) {
   background: #5a67d8;
   transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(90, 103, 216, 0.25);
 }
 
 .send-button:disabled {

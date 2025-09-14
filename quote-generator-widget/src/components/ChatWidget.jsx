@@ -3,9 +3,9 @@ import ChatBubble from './ChatBubble';
 import MessageList from './MessageList';
 import PhotoUpload from './PhotoUpload';
 import LeadForm from './LeadForm';
-import CartIcon from './CartIcon';
-import CartSidebar from './CartSidebar';
-import AddToCartPopup from './AddToCartPopup';
+import ServicesIcon from './ServicesIcon';
+import ServicesPanel from './ServicesPanel';
+import AddServiceModal from './AddServiceModal';
 import { Send, X, MessageCircle, Camera, ArrowLeft } from 'lucide-react';
 import { DecisionTreeState } from '../utils/decisionTree';
 import { CartManager } from '../utils/cartManager';
@@ -22,12 +22,12 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
   const [decisionTree, setDecisionTree] = useState(null);
   const [currentOptions, setCurrentOptions] = useState([]);
   
-  // Cart-related state
-  const [cartManager, setCartManager] = useState(null);
-  const [cartData, setCartData] = useState({ cartItems: [], itemCount: 0, totalEstimate: 0 });
-  const [showCartSidebar, setShowCartSidebar] = useState(false);
-  const [showAddToCartPopup, setShowAddToCartPopup] = useState(false);
-  const [pendingCartItem, setPendingCartItem] = useState(null);
+  // Services-related state
+  const [servicesManager, setServicesManager] = useState(null);
+  const [servicesData, setServicesData] = useState({ serviceItems: [], itemCount: 0, totalEstimate: 0 });
+  const [showServicesPanel, setShowServicesPanel] = useState(false);
+  const [showAddServiceModal, setShowAddServiceModal] = useState(false);
+  const [pendingServiceItem, setPendingServiceItem] = useState(null);
   const [serviceRecognition, setServiceRecognition] = useState(null);
   
   const inputRef = useRef(null);
@@ -60,38 +60,48 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
           }
         }
 
-        // Initialize cart system with lead data
-        initializeCartSystem(tree.dynamicServices);
+        // Initialize services system with lead data
+        initializeServicesSystem(tree.dynamicServices);
       };
       
       initializeTree();
     }
   }, [leadData, businessId, decisionTree, apiBaseUrl]);
 
-  // Re-initialize cart system when lead data becomes available
+  // Re-initialize services system when lead data becomes available
   useEffect(() => {
-    if (leadData && decisionTree && !cartManager) {
-      initializeCartSystem(decisionTree.dynamicServices || []);
+    if (leadData && decisionTree && !servicesManager) {
+      initializeServicesSystem(decisionTree.dynamicServices || []);
     }
   }, [leadData, decisionTree]);
 
-  // Initialize cart system
-  const initializeCartSystem = (availableServices = []) => {
-    // Initialize cart manager
-    const cart = new CartManager(businessId, leadData?.leadId);
-    setCartManager(cart);
+  // Initialize services system
+  const initializeServicesSystem = (availableServices = []) => {
+    // Initialize services manager (using CartManager but renamed conceptually)
+    const servicesManager = new CartManager(businessId, leadData?.leadId);
+    setServicesManager(servicesManager);
 
     // Initialize service recognition with available services
     const recognition = new ServiceRecognitionEngine(availableServices);
     setServiceRecognition(recognition);
 
-    // Subscribe to cart changes
-    const unsubscribe = cart.subscribe((cartData) => {
-      setCartData(cartData);
+    // Subscribe to services changes
+    const unsubscribe = servicesManager.subscribe((servicesData) => {
+      // Map cart data to services data structure
+      setServicesData({
+        serviceItems: servicesData.cartItems,
+        itemCount: servicesData.itemCount,
+        totalEstimate: servicesData.totalEstimate
+      });
     });
 
-    // Initial cart data
-    setCartData(cart.exportCartData());
+    // Initial services data
+    const initialData = servicesManager.exportCartData();
+    setServicesData({
+      serviceItems: initialData.cartItems,
+      itemCount: initialData.itemCount,
+      totalEstimate: initialData.totalEstimate
+    });
 
     // Cleanup subscription on unmount
     return unsubscribe;
@@ -167,8 +177,8 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
         if (analysisResult && analysisResult.shouldShowPopup) {
           // Wait a moment for the bot response to be seen
           setTimeout(() => {
-            setPendingCartItem(analysisResult);
-            setShowAddToCartPopup(true);
+            setPendingServiceItem(analysisResult);
+            setShowAddServiceModal(true);
           }, 1000);
         }
       }
@@ -306,69 +316,69 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
     }
   };
 
-  // Cart event handlers
-  const handleAddToCart = async (cartItem) => {
-    if (cartManager) {
-      const addedItem = cartManager.addItem(cartItem);
-      addMessage('bot', `✅ Added "${cartItem.serviceName}" to your service needs. You can view your items using the cart icon.`);
-      console.log('Added to cart:', addedItem);
+  // Services event handlers
+  const handleAddService = async (serviceItem) => {
+    if (servicesManager) {
+      const addedItem = servicesManager.addItem(serviceItem);
+      addMessage('bot', `✅ Added "${serviceItem.serviceName}" to your selected services. You can view your items using the services panel.`);
+      console.log('Added service:', addedItem);
       
       // Sync with backend if lead data exists
       if (leadData) {
         try {
-          await cartManager.syncWithBackend(apiBaseUrl);
+          await servicesManager.syncWithBackend(apiBaseUrl);
         } catch (error) {
-          console.warn('Failed to sync cart with backend:', error);
+          console.warn('Failed to sync services with backend:', error);
         }
       }
     }
-    setShowAddToCartPopup(false);
-    setPendingCartItem(null);
+    setShowAddServiceModal(false);
+    setPendingServiceItem(null);
   };
 
-  const handleCartIconClick = () => {
-    setShowCartSidebar(!showCartSidebar);
+  const handleServicesIconClick = () => {
+    setShowServicesPanel(!showServicesPanel);
   };
 
-  const handleRemoveFromCart = async (itemId) => {
-    if (cartManager) {
-      const removed = cartManager.removeItem(itemId);
+  const handleRemoveService = async (itemId) => {
+    if (servicesManager) {
+      const removed = servicesManager.removeItem(itemId);
       if (removed) {
-        addMessage('bot', 'Item removed from your service needs.');
+        addMessage('bot', 'Service removed from your selection.');
         
         // Sync with backend if lead data exists
         if (leadData) {
           try {
-            await cartManager.syncWithBackend(apiBaseUrl);
+            await servicesManager.syncWithBackend(apiBaseUrl);
           } catch (error) {
-            console.warn('Failed to sync cart with backend:', error);
+            console.warn('Failed to sync services with backend:', error);
           }
         }
       }
     }
   };
 
-  const handleEditCartItem = (item) => {
-    // Pre-fill the add-to-cart popup with existing item data
-    setPendingCartItem({
+  const handleEditService = (item) => {
+    // Pre-fill the add service modal with existing item data
+    setPendingServiceItem({
       service: item.serviceName,
       serviceType: item.serviceType,
       details: item.details,
       estimatedPrice: item.estimatedPrice,
       confidenceScore: item.aiConfidenceScore
     });
-    setShowAddToCartPopup(true);
-    setShowCartSidebar(false);
+    setShowAddServiceModal(true);
+    setShowServicesPanel(false);
   };
 
   const handleRequestQuote = async () => {
-    if (!cartManager || cartData.itemCount === 0) return;
+    if (!servicesManager || servicesData.itemCount === 0) return;
 
     try {
       setIsLoading(true);
       
-      // Export cart data for quote request
-      const cartExport = cartManager.exportCartData();
+      // Export services data for quote request
+      const servicesExport = servicesManager.exportCartData();
       
       // Create a quote request
       const response = await fetch(`${apiBaseUrl}/cart/quote-request`, {
@@ -379,18 +389,18 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
         body: JSON.stringify({
           businessId,
           leadData,
-          cartItems: cartExport.cartItems,
-          totalEstimate: cartExport.totalEstimate,
-          requestType: 'service-cart'
+          cartItems: servicesExport.cartItems,
+          totalEstimate: servicesExport.totalEstimate,
+          requestType: 'service-selection'
         }),
       });
 
       if (response.ok) {
-        addMessage('bot', `🎉 Quote request submitted! We'll review your ${cartData.itemCount} service${cartData.itemCount !== 1 ? 's' : ''} and get back to you with a detailed quote soon.`);
-        setShowCartSidebar(false);
+        addMessage('bot', `🎉 Quote request submitted! We'll review your ${servicesData.itemCount} selected service${servicesData.itemCount !== 1 ? 's' : ''} and get back to you with a detailed quote soon.`);
+        setShowServicesPanel(false);
         
-        // Optionally clear cart after successful quote request
-        // cartManager.clearCart();
+        // Optionally clear services after successful quote request
+        // servicesManager.clearCart();
       } else {
         throw new Error('Failed to submit quote request');
       }
@@ -502,36 +512,36 @@ const ChatWidget = ({ businessId, apiBaseUrl = 'http://localhost:3001' }) => {
         )}
       </div>
 
-      {/* Cart Components - show only when lead data exists */}
-      {leadData && cartManager && (
+      {/* Services Components - show only when lead data exists */}
+      {leadData && servicesManager && (
         <>
-          <CartIcon 
-            itemCount={cartData.itemCount}
-            onClick={handleCartIconClick}
-            isExpanded={showCartSidebar}
+          <ServicesIcon 
+            itemCount={servicesData.itemCount}
+            onClick={handleServicesIconClick}
+            isExpanded={showServicesPanel}
           />
           
-          <CartSidebar
-            isOpen={showCartSidebar}
-            onClose={() => setShowCartSidebar(false)}
-            cartItems={cartData.cartItems}
-            onRemoveItem={handleRemoveFromCart}
-            onEditItem={handleEditCartItem}
+          <ServicesPanel
+            isOpen={showServicesPanel}
+            onClose={() => setShowServicesPanel(false)}
+            serviceItems={servicesData.serviceItems}
+            onRemoveItem={handleRemoveService}
+            onEditItem={handleEditService}
             onRequestQuote={handleRequestQuote}
-            totalEstimate={cartData.totalEstimate}
+            totalEstimate={servicesData.totalEstimate}
           />
           
-          <AddToCartPopup
-            isOpen={showAddToCartPopup}
+          <AddServiceModal
+            isOpen={showAddServiceModal}
             onClose={() => {
-              setShowAddToCartPopup(false);
-              setPendingCartItem(null);
+              setShowAddServiceModal(false);
+              setPendingServiceItem(null);
             }}
-            onAddToCart={handleAddToCart}
-            serviceData={pendingCartItem}
+            onAddService={handleAddService}
+            serviceData={pendingServiceItem}
             onCancel={() => {
-              setShowAddToCartPopup(false);
-              setPendingCartItem(null);
+              setShowAddServiceModal(false);
+              setPendingServiceItem(null);
             }}
           />
         </>
