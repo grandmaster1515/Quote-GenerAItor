@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import RequirementsBuilder from './RequirementsBuilder';
 
 const ServicesManager = ({ businessId }) => {
   const [services, setServices] = useState([]);
@@ -9,7 +10,8 @@ const ServicesManager = ({ businessId }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    pricing_info: ''
+    pricing_info: '',
+    required_info: []
   });
 
   // API base URL
@@ -46,9 +48,38 @@ const ServicesManager = ({ businessId }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       setError(null);
+
+      // Validate form data
+      if (!formData.name?.trim()) {
+        setError('Service name is required');
+        return;
+      }
+
+      // Validate requirements
+      const validationErrors = [];
+      formData.required_info.forEach((req, index) => {
+        if (!req.key?.trim()) {
+          validationErrors.push(`Requirement ${index + 1}: Internal key is required`);
+        } else if (!/^[a-z0-9_]+$/.test(req.key)) {
+          validationErrors.push(`Requirement ${index + 1}: Internal key can only contain lowercase letters, numbers, and underscores`);
+        }
+
+        if (!req.prompt?.trim()) {
+          validationErrors.push(`Requirement ${index + 1}: Customer prompt is required`);
+        }
+
+        if (['select', 'multiselect'].includes(req.type) && (!req.options || req.options.length === 0 || req.options.every(opt => !opt?.trim()))) {
+          validationErrors.push(`Requirement ${index + 1}: At least one option is required for ${req.type} fields`);
+        }
+      });
+
+      if (validationErrors.length > 0) {
+        setError(validationErrors.join('\n'));
+        return;
+      }
       
       const url = editingService 
         ? `${API_BASE_URL}/api/services/${businessId}/${editingService.id}`
@@ -75,7 +106,7 @@ const ServicesManager = ({ businessId }) => {
         await loadServices();
         
         // Reset form
-        setFormData({ name: '', description: '', pricing_info: '' });
+        setFormData({ name: '', description: '', pricing_info: '', required_info: [] });
         setIsEditing(false);
         setEditingService(null);
       }
@@ -90,7 +121,8 @@ const ServicesManager = ({ businessId }) => {
     setFormData({
       name: service.name,
       description: service.description || '',
-      pricing_info: service.pricing_info || ''
+      pricing_info: service.pricing_info || '',
+      required_info: service.required_info || []
     });
     setIsEditing(true);
   };
@@ -121,7 +153,7 @@ const ServicesManager = ({ businessId }) => {
   };
 
   const handleCancel = () => {
-    setFormData({ name: '', description: '', pricing_info: '' });
+    setFormData({ name: '', description: '', pricing_info: '', required_info: [] });
     setIsEditing(false);
     setEditingService(null);
     setError(null);
@@ -130,6 +162,11 @@ const ServicesManager = ({ businessId }) => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Handle requirements change
+  const handleRequirementsChange = (newRequirements) => {
+    setFormData(prev => ({ ...prev, required_info: newRequirements }));
   };
 
   if (loading) {
@@ -167,13 +204,17 @@ const ServicesManager = ({ businessId }) => {
               </div>
               <div className="ml-3">
                 <h3 className="text-sm font-medium text-red-800">Error</h3>
-                <div className="mt-2 text-sm text-red-700">{error}</div>
+                <div className="mt-2 text-sm text-red-700">
+                  {error.split('\n').map((line, index) => (
+                    <div key={index}>{line}</div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-8">
           {/* Services List */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="px-6 py-4 border-b border-gray-200">
@@ -210,6 +251,11 @@ const ServicesManager = ({ businessId }) => {
                           {service.pricing_info && (
                             <p className="mt-1 text-sm text-green-600 font-medium ml-9">{service.pricing_info}</p>
                           )}
+                          {service.required_info && service.required_info.length > 0 && (
+                            <p className="mt-1 text-xs text-blue-600 ml-9">
+                              {service.required_info.length} requirement{service.required_info.length !== 1 ? 's' : ''} configured
+                            </p>
+                          )}
                           <p className="mt-1 text-xs text-gray-400 ml-9">
                             Created: {new Date(service.created_at).toLocaleDateString()}
                           </p>
@@ -238,64 +284,99 @@ const ServicesManager = ({ businessId }) => {
 
           {/* Add/Edit Service Form */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {editingService ? 'Edit Service' : 'Add New Service'}
-              </h2>
-              <p className="text-sm text-gray-600">
-                {editingService ? 'Update service information' : 'Create a new service for your chat widget'}
-              </p>
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {editingService ? 'Edit Service' : 'Add New Service'}
+                </h2>
+                <p className="text-sm text-gray-600">
+                  {editingService ? 'Update service information and requirements' : 'Create a new service with custom requirements'}
+                </p>
+              </div>
+              {!isEditing && (
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add New Service
+                </button>
+              )}
             </div>
-            
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                  Service Name *
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  required
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="e.g., HVAC Services"
-                />
-              </div>
 
-              <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                  Description
-                </label>
-                <textarea
-                  id="description"
-                  name="description"
-                  rows={3}
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="Brief description of the service..."
-                />
-              </div>
+            {isEditing ? (
+              <form onSubmit={handleSubmit} className="p-6 space-y-8">
+                {/* Basic Service Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                      Service Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      required
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="e.g., Gutter Cleaning"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      This will appear in your chat widget's service selection
+                    </p>
+                  </div>
 
-              <div>
-                <label htmlFor="pricing_info" className="block text-sm font-medium text-gray-700">
-                  Pricing Information
-                </label>
-                <input
-                  type="text"
-                  id="pricing_info"
-                  name="pricing_info"
-                  value={formData.pricing_info}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholder="e.g., Starting at $150"
-                />
-              </div>
+                  <div>
+                    <label htmlFor="pricing_info" className="block text-sm font-medium text-gray-700">
+                      Pricing Information
+                    </label>
+                    <input
+                      type="text"
+                      id="pricing_info"
+                      name="pricing_info"
+                      value={formData.pricing_info}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      placeholder="e.g., Starting at $150"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Optional pricing information shown to customers
+                    </p>
+                  </div>
+                </div>
 
-              <div className="flex justify-end space-x-3">
-                {(isEditing || formData.name || formData.description || formData.pricing_info) && (
+                <div>
+                  <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                    Service Description
+                  </label>
+                  <textarea
+                    id="description"
+                    name="description"
+                    rows={3}
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    placeholder="Brief description of what this service includes..."
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    This helps customers understand what's included in the service
+                  </p>
+                </div>
+
+                {/* Requirements Builder */}
+                <div className="border-t border-gray-200 pt-8">
+                  <RequirementsBuilder
+                    requirements={formData.required_info}
+                    onRequirementsChange={handleRequirementsChange}
+                  />
+                </div>
+
+                {/* Form Actions */}
+                <div className="border-t border-gray-200 pt-6 flex justify-end space-x-3">
                   <button
                     type="button"
                     onClick={handleCancel}
@@ -303,15 +384,39 @@ const ServicesManager = ({ businessId }) => {
                   >
                     Cancel
                   </button>
-                )}
-                <button
-                  type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  {editingService ? 'Update Service' : 'Add Service'}
-                </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    {editingService ? 'Update Service' : 'Create Service'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="p-6">
+                <div className="text-center py-12">
+                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">Ready to add a service?</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Create services with custom requirements to streamline your quote process.
+                  </p>
+                  <div className="mt-6">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Add Your First Service
+                    </button>
+                  </div>
+                </div>
               </div>
-            </form>
+            )}
           </div>
         </div>
 

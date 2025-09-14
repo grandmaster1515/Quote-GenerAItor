@@ -14,8 +14,8 @@ router.get('/:businessId', async (req, res) => {
     }
 
     const result = await query(`
-      SELECT id, name, description, pricing_info, is_active, display_order, created_at, updated_at
-      FROM services 
+      SELECT id, name, description, pricing_info, required_info, is_active, display_order, created_at, updated_at
+      FROM services
       WHERE business_id = $1 AND is_active = true
       ORDER BY display_order ASC, name ASC
     `, [businessId]);
@@ -38,7 +38,7 @@ router.get('/:businessId', async (req, res) => {
 router.post('/:businessId', async (req, res) => {
   try {
     const { businessId } = req.params;
-    const { name, description, pricing_info, display_order } = req.body;
+    const { name, description, pricing_info, required_info, display_order } = req.body;
     
     if (!businessId || !name) {
       return res.status(400).json({ 
@@ -69,11 +69,17 @@ router.post('/:businessId', async (req, res) => {
       finalDisplayOrder = maxOrderResult.rows[0].next_order;
     }
 
+    // Validate and prepare required_info
+    let processedRequiredInfo = [];
+    if (required_info && Array.isArray(required_info)) {
+      processedRequiredInfo = required_info.filter(req => req.key && req.prompt);
+    }
+
     const result = await query(`
-      INSERT INTO services (business_id, name, description, pricing_info, display_order)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING id, name, description, pricing_info, is_active, display_order, created_at, updated_at
-    `, [businessId, name, description, pricing_info, finalDisplayOrder]);
+      INSERT INTO services (business_id, name, description, pricing_info, required_info, display_order)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id, name, description, pricing_info, required_info, is_active, display_order, created_at, updated_at
+    `, [businessId, name, description, pricing_info, JSON.stringify(processedRequiredInfo), finalDisplayOrder]);
 
     res.status(201).json({
       success: true,
@@ -94,7 +100,7 @@ router.post('/:businessId', async (req, res) => {
 router.put('/:businessId/:serviceId', async (req, res) => {
   try {
     const { businessId, serviceId } = req.params;
-    const { name, description, pricing_info, display_order, is_active } = req.body;
+    const { name, description, pricing_info, required_info, display_order, is_active } = req.body;
     
     if (!businessId || !serviceId) {
       return res.status(400).json({ 
@@ -145,6 +151,15 @@ router.put('/:businessId/:serviceId', async (req, res) => {
       updateFields.push(`pricing_info = $${paramCount++}`);
       updateValues.push(pricing_info);
     }
+    if (required_info !== undefined) {
+      // Validate and prepare required_info
+      let processedRequiredInfo = [];
+      if (Array.isArray(required_info)) {
+        processedRequiredInfo = required_info.filter(req => req.key && req.prompt);
+      }
+      updateFields.push(`required_info = $${paramCount++}`);
+      updateValues.push(JSON.stringify(processedRequiredInfo));
+    }
     if (display_order !== undefined) {
       updateFields.push(`display_order = $${paramCount++}`);
       updateValues.push(display_order);
@@ -164,10 +179,10 @@ router.put('/:businessId/:serviceId', async (req, res) => {
     updateValues.push(serviceId, businessId);
 
     const result = await query(`
-      UPDATE services 
+      UPDATE services
       SET ${updateFields.join(', ')}
       WHERE id = $${paramCount++} AND business_id = $${paramCount++}
-      RETURNING id, name, description, pricing_info, is_active, display_order, created_at, updated_at
+      RETURNING id, name, description, pricing_info, required_info, is_active, display_order, created_at, updated_at
     `, updateValues);
 
     res.json({
@@ -254,8 +269,8 @@ router.post('/:businessId/reorder', async (req, res) => {
 
     // Fetch updated services
     const result = await query(`
-      SELECT id, name, description, pricing_info, is_active, display_order, created_at, updated_at
-      FROM services 
+      SELECT id, name, description, pricing_info, required_info, is_active, display_order, created_at, updated_at
+      FROM services
       WHERE business_id = $1 AND is_active = true
       ORDER BY display_order ASC
     `, [businessId]);

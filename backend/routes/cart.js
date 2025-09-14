@@ -216,4 +216,217 @@ router.get('/business/:businessId', async (req, res) => {
   }
 });
 
+// PATCH /cart/item/:sessionId/:itemIndex - Update a specific cart item
+router.patch('/item/:sessionId/:itemIndex', async (req, res) => {
+  try {
+    const { sessionId, itemIndex } = req.params;
+    const { updatedDetails } = req.body;
+
+    if (!sessionId || !updatedDetails) {
+      return res.status(400).json({
+        error: 'Session ID and updated details are required'
+      });
+    }
+
+    // Get current cart session
+    const cartResult = await query(`
+      SELECT session_id, business_id, cart_data, total_estimate, item_count
+      FROM cart_sessions
+      WHERE session_id = $1
+    `, [sessionId]);
+
+    if (cartResult.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Cart session not found'
+      });
+    }
+
+    const cartSession = cartResult.rows[0];
+    let cartItems = cartSession.cart_data || [];
+
+    // Validate item index
+    const index = parseInt(itemIndex);
+    if (index < 0 || index >= cartItems.length) {
+      return res.status(400).json({
+        error: 'Invalid item index'
+      });
+    }
+
+    // Update the specific cart item
+    const currentItem = cartItems[index];
+    const updatedItem = {
+      ...currentItem,
+      collectedDetails: {
+        ...currentItem.collectedDetails,
+        ...updatedDetails
+      },
+      lastModified: new Date().toISOString()
+    };
+
+    cartItems[index] = updatedItem;
+
+    // Recalculate total estimate
+    const newTotal = cartItems.reduce((sum, item) => sum + (item.estimatedPrice || 0), 0);
+
+    // Update cart session in database
+    const updateResult = await query(`
+      UPDATE cart_sessions
+      SET cart_data = $1, total_estimate = $2, updated_at = NOW()
+      WHERE session_id = $3
+      RETURNING session_id, created_at, updated_at
+    `, [JSON.stringify(cartItems), newTotal, sessionId]);
+
+    res.json({
+      success: true,
+      updatedItem,
+      cartItems,
+      totalEstimate: newTotal,
+      itemCount: cartItems.length,
+      message: 'Cart item updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Error updating cart item:', error);
+    res.status(500).json({
+      error: 'Failed to update cart item',
+      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// DELETE /cart/item/:sessionId/:itemIndex - Remove a specific cart item
+router.delete('/item/:sessionId/:itemIndex', async (req, res) => {
+  try {
+    const { sessionId, itemIndex } = req.params;
+
+    if (!sessionId) {
+      return res.status(400).json({
+        error: 'Session ID is required'
+      });
+    }
+
+    // Get current cart session
+    const cartResult = await query(`
+      SELECT session_id, business_id, cart_data, total_estimate, item_count
+      FROM cart_sessions
+      WHERE session_id = $1
+    `, [sessionId]);
+
+    if (cartResult.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Cart session not found'
+      });
+    }
+
+    const cartSession = cartResult.rows[0];
+    let cartItems = cartSession.cart_data || [];
+
+    // Validate item index
+    const index = parseInt(itemIndex);
+    if (index < 0 || index >= cartItems.length) {
+      return res.status(400).json({
+        error: 'Invalid item index'
+      });
+    }
+
+    // Remove the item
+    const removedItem = cartItems.splice(index, 1)[0];
+
+    // Recalculate total estimate
+    const newTotal = cartItems.reduce((sum, item) => sum + (item.estimatedPrice || 0), 0);
+    const newItemCount = cartItems.length;
+
+    if (newItemCount === 0) {
+      // If cart is empty, delete the cart session
+      await query(`DELETE FROM cart_sessions WHERE session_id = $1`, [sessionId]);
+
+      res.json({
+        success: true,
+        removedItem,
+        cartItems: [],
+        totalEstimate: 0,
+        itemCount: 0,
+        cartEmpty: true,
+        message: 'Cart item removed and cart cleared'
+      });
+    } else {
+      // Update cart session with remaining items
+      await query(`
+        UPDATE cart_sessions
+        SET cart_data = $1, total_estimate = $2, item_count = $3, updated_at = NOW()
+        WHERE session_id = $4
+      `, [JSON.stringify(cartItems), newTotal, newItemCount, sessionId]);
+
+      res.json({
+        success: true,
+        removedItem,
+        cartItems,
+        totalEstimate: newTotal,
+        itemCount: newItemCount,
+        cartEmpty: false,
+        message: 'Cart item removed successfully'
+      });
+    }
+
+  } catch (error) {
+    console.error('Error removing cart item:', error);
+    res.status(500).json({
+      error: 'Failed to remove cart item',
+      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// GET /cart/item/:sessionId/:itemIndex - Get a specific cart item
+router.get('/item/:sessionId/:itemIndex', async (req, res) => {
+  try {
+    const { sessionId, itemIndex } = req.params;
+
+    if (!sessionId) {
+      return res.status(400).json({
+        error: 'Session ID is required'
+      });
+    }
+
+    // Get current cart session
+    const cartResult = await query(`
+      SELECT session_id, business_id, cart_data
+      FROM cart_sessions
+      WHERE session_id = $1
+    `, [sessionId]);
+
+    if (cartResult.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Cart session not found'
+      });
+    }
+
+    const cartItems = cartResult.rows[0].cart_data || [];
+
+    // Validate item index
+    const index = parseInt(itemIndex);
+    if (index < 0 || index >= cartItems.length) {
+      return res.status(400).json({
+        error: 'Invalid item index'
+      });
+    }
+
+    const item = cartItems[index];
+
+    res.json({
+      success: true,
+      item,
+      itemIndex: index,
+      totalItems: cartItems.length
+    });
+
+  } catch (error) {
+    console.error('Error fetching cart item:', error);
+    res.status(500).json({
+      error: 'Failed to fetch cart item',
+      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 module.exports = router;

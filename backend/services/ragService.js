@@ -239,15 +239,15 @@ class RAGService {
     }
   }
 
-  async generateResponse(businessId, query, context = []) {
+  async generateResponse(businessId, query, context = [], personaPrompt = null) {
     try {
       if (!this.initialized) {
         await this.initialize();
       }
 
       // Find relevant context
-      const relevantContext = context.length > 0 
-        ? context 
+      const relevantContext = context.length > 0
+        ? context
         : await this.findSimilarContext(businessId, query);
 
       // Build context string
@@ -255,8 +255,8 @@ class RAGService {
         .map(ctx => `Q: ${ctx.question}\nA: ${ctx.answer}`)
         .join('\n\n');
 
-      // Create prompt
-      const prompt = this.createPrompt(query, contextString);
+      // Create prompt with persona instructions
+      const prompt = this.createPrompt(query, contextString, personaPrompt);
 
       // Generate response using Hugging Face API
       let response;
@@ -278,16 +278,17 @@ class RAGService {
             }
           });
           response = hfResponse.generated_text;
-          
+
           // Clean up the response by removing the prompt if it's included
           if (typeof prompt === 'string' && response.startsWith(prompt)) {
             response = response.substring(prompt.length).trim();
           }
-          
+
           console.log('✅ Generated response using Hugging Face API');
         } catch (hfError) {
           console.warn('⚠️  Hugging Face text generation failed, using fallback:', hfError.message);
-          response = "I'd be happy to help you with your home improvement needs. Could you please provide more details about what specific service you're looking for? We offer a wide range of services including HVAC, plumbing, electrical, and remodeling work.";
+          const businessName = process.env.BUSINESS_NAME || 'HomeFix Pro Services';
+          response = `I'd be happy to help you with your home improvement needs! Could you tell me more about what specific service you're looking for? At ${businessName}, we offer a wide range of services including HVAC, plumbing, electrical, and remodeling work.`;
         }
       }
 
@@ -300,44 +301,53 @@ class RAGService {
     } catch (error) {
       console.error('❌ Error generating response:', error);
       // Return a fallback response instead of throwing
+      const businessName = process.env.BUSINESS_NAME || 'HomeFix Pro Services';
       return {
-        response: "I apologize, but I'm having trouble processing your request right now. Please try again or contact us directly for assistance.",
+        response: `I apologize, but I'm having a bit of trouble processing your request right now. Please try again, or feel free to contact ${businessName} directly for assistance.`,
         context: [],
         confidence: 0.1
       };
     }
   }
 
-  createPrompt(query, context) {
+  createPrompt(query, context, personaPrompt = null) {
+    const businessName = process.env.BUSINESS_NAME || 'HomeFix Pro Services';
+    const defaultPersona = `You are a friendly and helpful assistant for ${businessName}. Your tone should be professional yet approachable. Avoid sounding like a robot. Vary your sentence structure and phrasing to make the conversation feel natural and engaging.`;
+    const persona = personaPrompt || defaultPersona;
+
     if (this.llm instanceof ChatOpenAI) {
       // Return structured message for ChatOpenAI
       return [
         {
           role: "system",
-          content: `You are a helpful customer service assistant for a home improvement company. 
-Use the following context to answer the customer's question. If the context doesn't contain 
+          content: `${persona}
+
+Use the following context to answer the customer's question. If the context doesn't contain
 relevant information, provide a helpful general response and suggest they contact the company directly.
+Keep your responses conversational and avoid robotic language patterns.
 
 Context:
 ${context}`
         },
         {
-          role: "user", 
+          role: "user",
           content: query
         }
       ];
     } else {
       // Return string prompt for mock LLM
-      return `You are a helpful customer service assistant for a home improvement company. 
-Use the following context to answer the customer's question. If the context doesn't contain 
+      return `${persona}
+
+Use the following context to answer the customer's question. If the context doesn't contain
 relevant information, provide a helpful general response and suggest they contact the company directly.
+Keep your responses conversational and avoid robotic language patterns.
 
 Context:
 ${context}
 
 Customer Question: ${query}
 
-Response (be helpful, professional, and concise):`;
+Response (be helpful, professional, and conversational):`;
     }
   }
 
